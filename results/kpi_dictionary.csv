@@ -1,0 +1,11 @@
+metric,formula,unit,edge_cases
+CTR,clicks / impressions,share (0–1),"0 impressions -> undefined (NULL), never 0"
+CPM,spend / impressions * 1000,"USD per 1,000 impressions",noisy below ~100k impressions; low_volume_flag marks those segments
+CPC,spend / clicks,USD per click,0 clicks -> undefined (NULL)
+CVR (conversion rate),approved conversions / clicks,share (0–1),"base is CLICKS, stated; 0 clicks -> undefined"
+CPA,spend / approved conversions,USD per conversion,"0 conversions -> undefined (NULL), never 0; ads with spend and no conversions have infinite effective CPA and rank last"
+ROAS,approved conversions * 50 / spend,ratio,the data has no revenue column; 50 USD per conversion is an assumption and every ROAS figure is labelled with it
+Absolute lift,treated rate - control rate,percentage points,only meaningful in a randomized experiment
+Relative lift,absolute lift / control rate,percent,undefined when the control rate is 0
+Incremental conversions,absolute lift * treated group size,conversions,the extra conversions the treatment caused
+iCPA,spend / incremental conversions,USD per incremental conversion,"the honest CPA; needs an experiment, not just tracking"
