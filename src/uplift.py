@@ -163,7 +163,7 @@ def run_study(key: str, label: str, loader) -> dict:
     qini_plot(label, phi, qini, random_line, auqc, paths.FIGURES / f"qini_{key}.png")
 
     decile_table(score, t_te, y_te).to_csv(
-        paths.RESULTS / f"uplift_deciles_{key}.csv", index=False)
+        paths.RESULTS / f"uplift_deciles_{key}.csv", index=False, float_format="%.8g")
 
     tgt = targeting_share(score, t_te, y_te, 0.20)
     return {
@@ -180,13 +180,13 @@ def run() -> None:
     summaries.append(run_study("criteo", "Criteo display ads", load_criteo))
     summaries.append(run_study("hillstrom", "Hillstrom e-mail", load_hillstrom))
     out = pd.DataFrame(summaries)
-    out.to_csv(paths.RESULTS / "uplift_summary.csv", index=False)
+    out.to_csv(paths.RESULTS / "uplift_summary.csv", index=False, float_format="%.8g")
     pd.DataFrame([
         {"study": s["study"], "top_share": 0.20,
          "share_of_incremental_kept": s["share_kept_top20"]}
         for s in summaries
-    ]).to_csv(paths.RESULTS / "uplift_targeting.csv", index=False)
-    print(out.round(4).to_string(index=False))
+    ]).to_csv(paths.RESULTS / "uplift_targeting.csv", index=False, float_format="%.8g")
+    print(out.round(4).to_string(index=False, float_format="%.8g"))
 
 
 if __name__ == "__main__":

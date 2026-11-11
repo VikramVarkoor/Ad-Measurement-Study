@@ -47,7 +47,7 @@ def run() -> None:
     for name, path in EXTRA_FILES.items():
         audits.append(audit_file(con, name, path))
     audit_df = pd.DataFrame(audits)
-    audit_df.to_csv(paths.RESULTS / "data_audit.csv", index=False)
+    audit_df.to_csv(paths.RESULTS / "data_audit.csv", index=False, float_format="%.8g")
 
     # ------------------------------------------------- sample ratio checks
     srm_rows = []
@@ -76,7 +76,7 @@ def run() -> None:
                 "detail": f"observed {r['observed_share']:.4f} vs intended {r['expected_share']:.4f}",
                 "action": "flagged before analysis", "rows_touched": total,
             })
-    pd.DataFrame(srm_rows).to_csv(paths.RESULTS / "srm.csv", index=False)
+    pd.DataFrame(srm_rows).to_csv(paths.RESULTS / "srm.csv", index=False, float_format="%.8g")
 
     # ------------------------------------------------- covariate balance
     balances = []
@@ -92,7 +92,7 @@ def run() -> None:
                     "rows_touched": None,
                 })
     if balances:
-        pd.concat(balances).to_csv(paths.RESULTS / "balance.csv", index=False)
+        pd.concat(balances).to_csv(paths.RESULTS / "balance.csv", index=False, float_format="%.8g")
 
     # ------------------------------------------------- dataset-specific notes
     log_rows.append({
@@ -110,11 +110,11 @@ def run() -> None:
         "detail": "file has 13,979,592 rows; plan said 'about 14 million'",
         "action": "file wins; recorded", "rows_touched": 13979592,
     })
-    pd.DataFrame(log_rows).to_csv(paths.RESULTS / "data_quality_log.csv", index=False)
+    pd.DataFrame(log_rows).to_csv(paths.RESULTS / "data_quality_log.csv", index=False, float_format="%.8g")
 
-    print(audit_df.to_string(index=False))
+    print(audit_df.to_string(index=False, float_format="%.8g"))
     print()
-    print(pd.DataFrame(srm_rows).to_string(index=False))
+    print(pd.DataFrame(srm_rows).to_string(index=False, float_format="%.8g"))
 
 
 if __name__ == "__main__":

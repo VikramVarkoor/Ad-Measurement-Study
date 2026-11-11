@@ -1,3 +1,3 @@
 model,points_per_day_late,ci_low,ci_high,n,shrink_vs_raw_pct,interpretation
-raw,-0.07410638206669866,-0.07582540871056662,-0.0723873554228307,95824,0.0,association only — Olist is observational
-"adjusted (category, price, freight, seller state)",-0.07249354253659845,-0.07419922648889163,-0.07078785858430528,95824,2.1763841185076127,association only — Olist is observational
+raw,-0.07410638207,-0.07582540871,-0.07238735542,95824,0,association only — Olist is observational
+"adjusted (category, price, freight, seller state)",-0.07249354254,-0.07419922649,-0.07078785858,95824,2.176384119,association only — Olist is observational

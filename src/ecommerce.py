@@ -52,7 +52,7 @@ def run() -> None:
 
     # ------------------------------------------------ join trap must hold
     trap = con.execute("SELECT * FROM join_trap_check").df()
-    trap.to_csv(paths.RESULTS / "join_trap_check.csv", index=False)
+    trap.to_csv(paths.RESULTS / "join_trap_check.csv", index=False, float_format="%.8g")
     assert trap["inflation_factor"].iloc[0] > 1.0, \
         "items x payments should inflate revenue; check the join logic"
 
@@ -61,9 +61,9 @@ def run() -> None:
         WHERE purchase_week BETWEEN DATE '{SERIES_START}' AND DATE '{SERIES_END}'
         ORDER BY purchase_week
     """).df()
-    weekly.to_csv(paths.RESULTS / "weekly_ecom.csv", index=False)
+    weekly.to_csv(paths.RESULTS / "weekly_ecom.csv", index=False, float_format="%.8g")
     con.execute("SELECT * FROM week_over_week").df().to_csv(
-        paths.RESULTS / "week_over_week.csv", index=False)
+        paths.RESULTS / "week_over_week.csv", index=False, float_format="%.8g")
 
     # ------------------------------------------------ control-chart flags
     weekly["purchase_week"] = pd.to_datetime(weekly["purchase_week"])
@@ -83,7 +83,7 @@ def run() -> None:
         flags_all.append(f)
     flags = pd.concat(flags_all, ignore_index=True)
     flags["stable_stretch"] = f"{STABLE_START}..{STABLE_END}"
-    flags.to_csv(paths.RESULTS / "monitor_flags.csv", index=False)
+    flags.to_csv(paths.RESULTS / "monitor_flags.csv", index=False, float_format="%.8g")
 
     # ------------------------------------------------ monitor figure (orders)
     viz.style()
@@ -110,7 +110,7 @@ def run() -> None:
 
     # ------------------------------------------------ delay vs review (raw)
     dvr = con.execute("SELECT * FROM delay_vs_review").df()
-    dvr.to_csv(paths.RESULTS / "delay_vs_review.csv", index=False)
+    dvr.to_csv(paths.RESULTS / "delay_vs_review.csv", index=False, float_format="%.8g")
 
     fig, ax = plt.subplots(figsize=(6.5, 4.0))
     labels = ["On time", "1–3 days late", ">3 days late"]
@@ -174,11 +174,11 @@ def run() -> None:
     ])
     eff["shrink_vs_raw_pct"] = [0.0, (1 - adj_b / raw_b) * 100]
     eff["interpretation"] = "association only — Olist is observational"
-    eff.to_csv(paths.RESULTS / "delay_adjusted_effect.csv", index=False)
+    eff.to_csv(paths.RESULTS / "delay_adjusted_effect.csv", index=False, float_format="%.8g")
 
     # ------------------------------------------------ where the lates sit
     state = con.execute("SELECT * FROM late_by_seller_state").df()
-    state.to_csv(paths.RESULTS / "late_by_seller_state.csv", index=False)
+    state.to_csv(paths.RESULTS / "late_by_seller_state.csv", index=False, float_format="%.8g")
 
     # ------------------------------------------------ the recommendation
     late_share = float((weekly["late_share"] * weekly["orders"]).sum()
@@ -207,15 +207,15 @@ def run() -> None:
                        "controls, but no experiment and unmeasured confounders "
                        "(e.g. carrier, distance) remain"),
     }])
-    rec.to_csv(paths.RESULTS / "recommendation.csv", index=False)
+    rec.to_csv(paths.RESULTS / "recommendation.csv", index=False, float_format="%.8g")
 
-    print(trap.round(3).to_string(index=False))
+    print(trap.round(3).to_string(index=False, float_format="%.8g"))
     print()
-    print(dvr.round(3).to_string(index=False))
+    print(dvr.round(3).to_string(index=False, float_format="%.8g"))
     print()
-    print(eff.round(4).to_string(index=False))
+    print(eff.round(4).to_string(index=False, float_format="%.8g"))
     print()
-    print(state.head(8).round(3).to_string(index=False))
+    print(state.head(8).round(3).to_string(index=False, float_format="%.8g"))
     print()
     print(f"flagged weeks: {len(flags)} | late share: {late_share:.1%} | upside: {upside:.2f}")
 

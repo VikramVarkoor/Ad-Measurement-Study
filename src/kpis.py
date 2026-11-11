@@ -54,18 +54,21 @@ def run() -> None:
     frames = {}
     for v in views:
         df = con.execute(f"SELECT * FROM {v}").df()
+        # deterministic row order: DuckDB's parallel scans return rows in
+        # whatever order the threads finish, which would churn the committed CSVs
+        df = df.sort_values(by=list(df.columns)).reset_index(drop=True)
         frames[v] = df
-        df.to_csv(paths.RESULTS / f"{v}.csv", index=False)
+        df.to_csv(paths.RESULTS / f"{v}.csv", index=False, float_format="%.8g")
 
     # ROAS under the stated assumption, at campaign level
     roll = frames["campaign_rollup"].copy()
     roll["value_per_conversion_assumed"] = VALUE_PER_CONVERSION
     roll["roas_assumed"] = roll["conversions"] * VALUE_PER_CONVERSION / roll["spend"]
-    roll.to_csv(paths.RESULTS / "campaign_rollup.csv", index=False)
+    roll.to_csv(paths.RESULTS / "campaign_rollup.csv", index=False, float_format="%.8g")
 
     pd.DataFrame(
         KPI_DICTIONARY, columns=["metric", "formula", "unit", "edge_cases"]
-    ).to_csv(paths.RESULTS / "kpi_dictionary.csv", index=False)
+    ).to_csv(paths.RESULTS / "kpi_dictionary.csv", index=False, float_format="%.8g")
 
     # ------------------------------------------------ cross-check vs pandas
     raw = pd.read_csv(paths.FACEBOOK_ADS)
@@ -94,11 +97,11 @@ def run() -> None:
           float(raw["Clicks"].sum() / raw["Impressions"].sum()))
 
     checks_df = pd.DataFrame(checks)
-    checks_df.to_csv(paths.RESULTS / "kpi_crosscheck.csv", index=False)
+    checks_df.to_csv(paths.RESULTS / "kpi_crosscheck.csv", index=False, float_format="%.8g")
 
-    print(frames["campaign_rollup"].round(4).to_string(index=False))
+    print(frames["campaign_rollup"].round(4).to_string(index=False, float_format="%.8g"))
     print()
-    print(checks_df.to_string(index=False))
+    print(checks_df.to_string(index=False, float_format="%.8g"))
     if not checks_df["match"].all():
         raise SystemExit("SQL and pandas totals disagree — stop and find out why.")
 

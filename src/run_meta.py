@@ -34,13 +34,13 @@ def run() -> None:
             "ci_high_rr": np.exp(log_rr + meta.Z_975 * np.sqrt(var)),
         })
     studies = pd.DataFrame(rows)
-    studies.to_csv(paths.RESULTS / "meta_studies.csv", index=False)
+    studies.to_csv(paths.RESULTS / "meta_studies.csv", index=False, float_format="%.8g")
 
     eff, var = studies["log_rr"].values, studies["var"].values
     fe = meta.fixed_effect(eff, var)
     re = meta.dersimonian_laird(eff, var)
     loo = meta.leave_one_out(studies[["study", "log_rr", "var"]])
-    loo.to_csv(paths.RESULTS / "meta_leave_one_out.csv", index=False)
+    loo.to_csv(paths.RESULTS / "meta_leave_one_out.csv", index=False, float_format="%.8g")
 
     summary = pd.DataFrame([
         {"model": "fixed effect", "rr": np.exp(fe["estimate"]),
@@ -52,7 +52,7 @@ def run() -> None:
          "tau2": re["tau2"], "Q": re["Q"], "I2": re["I2"],
          "loo_rr_min": loo["random_rr"].min(), "loo_rr_max": loo["random_rr"].max()},
     ])
-    summary.to_csv(paths.RESULTS / "meta_results.csv", index=False)
+    summary.to_csv(paths.RESULTS / "meta_results.csv", index=False, float_format="%.8g")
 
     # ------------------------------------------------------------ forest plot
     viz.style()
@@ -88,11 +88,11 @@ def run() -> None:
     ax.grid(axis="y", visible=False)
     viz.save(fig, paths.FIGURES / "forest_plot.png")
 
-    print(studies[["study", "n", "rr", "ci_low_rr", "ci_high_rr"]].round(4).to_string(index=False))
+    print(studies[["study", "n", "rr", "ci_low_rr", "ci_high_rr"]].round(4).to_string(index=False, float_format="%.8g"))
     print()
-    print(summary.round(4).to_string(index=False))
+    print(summary.round(4).to_string(index=False, float_format="%.8g"))
     print()
-    print(loo.round(4).to_string(index=False))
+    print(loo.round(4).to_string(index=False, float_format="%.8g"))
 
 
 if __name__ == "__main__":

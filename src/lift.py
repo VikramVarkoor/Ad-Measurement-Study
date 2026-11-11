@@ -86,7 +86,7 @@ def run() -> None:
         })
 
     results = pd.DataFrame(rows)
-    results.to_csv(paths.RESULTS / "lift_results.csv", index=False)
+    results.to_csv(paths.RESULTS / "lift_results.csv", index=False, float_format="%.8g")
 
     # ---------------------------------------------------------- CUPED (Hillstrom)
     # Outcome: spend (continuous). Covariate: history = past-year spend,
@@ -109,7 +109,7 @@ def run() -> None:
          **adj, "ci_width": width_adj},
     ])
     cuped["interval_narrowing_pct"] = [0.0, (1 - width_adj / width_raw) * 100]
-    cuped.to_csv(paths.RESULTS / "cuped_hillstrom.csv", index=False)
+    cuped.to_csv(paths.RESULTS / "cuped_hillstrom.csv", index=False, float_format="%.8g")
 
     # --------------------------------------------- segments (Hillstrom, with BH)
     # Pre-treatment segments only. m is stated; BH at q = 0.10 per the plan.
@@ -137,17 +137,17 @@ def run() -> None:
     seg = pd.DataFrame(seg_rows)
     seg["m_segments_examined"] = len(seg)
     seg["bh_significant_q10"] = st.benjamini_hochberg(seg["p_value"].values, q=0.10)
-    seg.to_csv(paths.RESULTS / "segments_hillstrom.csv", index=False)
+    seg.to_csv(paths.RESULTS / "segments_hillstrom.csv", index=False, float_format="%.8g")
 
     with pd.option_context("display.width", 250):
         print(results[["study", "n_treated", "n_control", "rate_treated", "rate_control",
                        "abs_lift_pp", "ci_low_pp", "ci_high_pp", "boot_low_pp",
                        "boot_high_pp", "intervals_agree", "mde_abs_pp", "verdict"]]
-              .round(4).to_string(index=False))
+              .round(4).to_string(index=False, float_format="%.8g"))
         print()
-        print(cuped.round(4).to_string(index=False))
+        print(cuped.round(4).to_string(index=False, float_format="%.8g"))
         print()
-        print(seg.round(4).to_string(index=False))
+        print(seg.round(4).to_string(index=False, float_format="%.8g"))
 
 
 if __name__ == "__main__":
