@@ -9,7 +9,7 @@ an e-commerce business.
 > When a company shows people an ad or sends them an offer, how many extra
 > conversions does that cause — and how sure are we?
 
-**Across six public randomized experiments (15.9M users), marketing caused
+**Across six public randomized experiments (16.1M users), marketing caused
 32% more conversions — pooled risk ratio 1.32, 95% CI 1.18–1.48 — but the
 honest headline is the spread: individual studies range from +6% to +87%
 (I² = 99.7%), so a channel's own number only comes from its own experiment.**
