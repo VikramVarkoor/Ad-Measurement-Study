@@ -1,0 +1,12 @@
+# raw data is never committed (licences forbid redistribution)
+data/raw/
+data/processed/*.duckdb
+data/processed/*.parquet
+
+# environments and caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+.DS_Store
