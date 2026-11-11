@@ -1,0 +1,4 @@
+dataset,issue,detail,action,rows_touched
+marketing_ab,index column present,file carries an unnamed row-number column (column0),ignored in analysis,588101.0
+marketing_ab,no pre-treatment covariates,"'total ads' is measured after assignment, so balance cannot be checked",balance table skipped; noted in methods,
+criteo,row count differs from plan,"file has 13,979,592 rows; plan said 'about 14 million'",file wins; recorded,13979592.0

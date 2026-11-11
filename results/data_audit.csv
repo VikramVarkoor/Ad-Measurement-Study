@@ -1,0 +1,11 @@
+dataset,rows,columns,duplicate_row_groups
+criteo,13979592,16,961605
+hillstrom,64000,12,1072
+marketing_ab,588101,7,0
+lenta,687029,195,0
+x5,200039,3,0
+megafon,600000,52,0
+facebook_ads,1143,11,0
+olist_orders,99441,8,0
+olist_items,112650,7,0
+olist_reviews,99224,7,0
