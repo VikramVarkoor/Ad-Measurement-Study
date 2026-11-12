@@ -2,6 +2,6 @@ study,n,observed_share,expected_share,chi2,p_value,verdict
 criteo,13979592,0.85000013,0.85,1.8177758e-06,0.99892425,split consistent with intention
 hillstrom,64000,0.66709375,0.66666667,0.05253125,0.81871583,split consistent with intention
 marketing_ab,588101,0.96000007,0.96,7.0849508e-08,0.99978762,split consistent with intention
-lenta,687029,0.7509028,,,,"intended split undocumented — recorded, not testable"
+lenta,687029,0.7509028,,,,"intended split undocumented: recorded, not testable"
 x5,200039,0.49980754,0.5,0.02963922,0.86331139,split consistent with intention
-megafon,600000,0.50061333,,,,"intended split undocumented — recorded, not testable"
+megafon,600000,0.50061333,,,,"intended split undocumented: recorded, not testable"

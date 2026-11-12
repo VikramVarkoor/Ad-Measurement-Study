@@ -1,7 +1,7 @@
 """Phase 6: Olist weekly monitor and the late-delivery diagnosis.
 
 The monitor: weekly orders with a control-chart band (mean ± 3σ of a stable
-stretch) — it says WHEN a metric moved beyond normal noise, never why.
+stretch): it says WHEN a metric moved beyond normal noise, never why.
 
 The diagnosis: review score vs delivery delay, raw and then adjusted for
 product category, price, freight and seller state. Olist is observational,
@@ -121,7 +121,7 @@ def run() -> None:
                 ha="center", color=viz.TEXT)
     ax.set_ylim(0, 5)
     ax.set_ylabel("Average review score (1–5)")
-    ax.set_title("Late orders get much worse reviews — association, not proof of cause")
+    ax.set_title("Late orders get much worse reviews: association, not proof of cause")
     viz.save(fig, paths.FIGURES / "delay_vs_review.png")
 
     # ------------------------------------------------ adjusted association
@@ -173,7 +173,7 @@ def run() -> None:
          "n": int(adj_model.nobs)},
     ])
     eff["shrink_vs_raw_pct"] = [0.0, (1 - adj_b / raw_b) * 100]
-    eff["interpretation"] = "association only — Olist is observational"
+    eff["interpretation"] = "association only: Olist is observational"
     eff.to_csv(paths.RESULTS / "delay_adjusted_effect.csv", index=False, float_format="%.8g")
 
     # ------------------------------------------------ where the lates sit
@@ -202,7 +202,7 @@ def run() -> None:
                    "carrier SLAs there first"),
         "expected_effect": (f"up to ~{upside:.2f} points on the average review "
                             f"score if >3-day lates reviewed like on-time orders "
-                            "— an upper bound, association only"),
+                            "- an upper bound, association only"),
         "confidence": ("medium: large sample and the association survives "
                        "controls, but no experiment and unmeasured confounders "
                        "(e.g. carrier, distance) remain"),

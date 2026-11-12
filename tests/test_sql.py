@@ -36,7 +36,7 @@ class TestKpiSql:
         assert r[2] == pytest.approx(4.0)
 
     def test_rollup_is_not_average_of_ratios(self, con):
-        # mean of ad CTRs would be (.01+.01)/2 = .01 — here equal, so use CPA:
+        # mean of ad CTRs would be (.01+.01)/2 = .01: here equal, so use CPA:
         # ad CPAs are 2.5 and 5.0, mean 3.75; the honest rollup is 4.0
         r = con.execute("SELECT cpa FROM campaign_rollup WHERE campaign_id=100").fetchone()
         assert r[0] != pytest.approx(3.75)

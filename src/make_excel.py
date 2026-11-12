@@ -1,4 +1,4 @@
-"""Phase 7: build excel/measurement_tracker.xlsx — a workbook a measurement
+"""Phase 7: build excel/measurement_tracker.xlsx, a workbook a measurement
 team could actually use.
 
 Every analytical number in the workbook is a LIVE FORMULA (SUMIFS, XLOOKUP,
@@ -61,17 +61,17 @@ def build() -> None:
 
     # ---------------------------------------------------------- README
     ws = wb.add_worksheet("README")
-    sheet_title(ws, "Measurement tracker — Ad Measurement Study",
+    sheet_title(ws, "Measurement tracker: Ad Measurement Study",
                 "Public datasets, personal project. Version 1.0.")
     rows = [
         ("", ""),
         ("Purpose", "One workbook that computes campaign KPIs, reads any A/B test, "
-                    "and pools experiments — with every number as a live formula."),
+                    "and pools experiments: with every number as a live formula."),
         ("", ""),
         ("Sheet guide", ""),
         ("KPI_Dictionary", "每 metric: formula, unit, edge cases".replace("每", "Every")),
         ("Data_Campaigns", "Facebook ad campaign data (Kaggle) as an Excel Table"),
-        ("KPI_Calc", "Per-campaign KPIs from SUMIFS over the table — sums first, ratios second"),
+        ("KPI_Calc", "Per-campaign KPIs from SUMIFS over the table, sums first, ratios second, plus an XLOOKUP lookup cell"),
         ("Pivot_View", "Campaign x age cross-tab from formulas; see note for a native PivotTable"),
         ("Scenario", "Value-per-conversion assumption drives ROAS and break-even CPA"),
         ("Experiment_Calc", "Type four counts from any A/B test; lift, interval, z, p and MDE recalc"),
@@ -81,9 +81,9 @@ def build() -> None:
         ("Checks", "Python pipeline numbers vs Excel formulas; differences should be ~0"),
         ("", ""),
         ("Data sources and licences", ""),
-        ("Criteo Uplift v2.1", "Criteo AI Lab via Hugging Face — CC BY-NC-SA 4.0"),
-        ("Hillstrom e-mail", "MineThatData challenge — free for analysis, credit the source"),
-        ("Marketing A/B, Facebook ads, Olist", "Kaggle — non-commercial research, credit the source"),
+        ("Criteo Uplift v2.1", "Criteo AI Lab via Hugging Face: CC BY-NC-SA 4.0"),
+        ("Hillstrom e-mail", "MineThatData challenge: free for analysis, credit the source"),
+        ("Marketing A/B, Facebook ads, Olist", "Kaggle: non-commercial research, credit the source"),
         ("Lenta / X5 / MegaFon", "scikit-uplift mirrors of public uplift datasets"),
     ]
     for i, (a, b) in enumerate(rows, start=2):
@@ -122,7 +122,7 @@ def build() -> None:
     # -------------------------------------------------------- KPI_Calc
     ws = wb.add_worksheet("KPI_Calc")
     sheet_title(ws, "Campaign KPIs from structured references",
-                "Sums first, ratios second — never an average of ad-level ratios.")
+                "Sums first, ratios second, never an average of ad-level ratios.")
     headers = ["campaign_id", "ads", "impressions", "clicks", "spend",
                "conversions", "CTR", "CPM", "CPC", "CVR", "CPA"]
     for c, col in enumerate(headers):
@@ -148,14 +148,17 @@ def build() -> None:
         ws.write_formula(tot, c, f"=SUM({l}5:{l}{tot})",
                          money if l == "E" else intf)
     ws.write_formula(tot, 10, f"=IFERROR(E{tot+1}/F{tot+1},\"\")", num2)
-    ws.write(tot + 2, 0, "XLOOKUP + LET example — CPA of the campaign typed in M2:", note)
+    # XLOOKUP demo: type a campaign id in M2, its CPA is looked up from the
+    # table above. (An earlier LET() version corrupted the sheet: xlsxwriter
+    # writes LET parameter names without the _xlpm. prefix Excel requires,
+    # so Excel's repair stripped every formula on the sheet. XLOOKUP is safe.)
+    ws.write(tot + 2, 0, "XLOOKUP example: type a campaign id in M2; N2 looks up its CPA", note)
     ws.write(3, 12, "campaign", head)
     ws.write_number(1, 12, camps[-1], input_fmt)
     ws.write_formula(
         1, 13,
-        f"=LET(c,M2, s,SUMIFS(Campaigns[spend],Campaigns[campaign_id],c), "
-        f"v,SUMIFS(Campaigns[conversions],Campaigns[campaign_id],c), "
-        f"IF(v=0,\"no conversions\",s/v))", num2)
+        f"=IFERROR(XLOOKUP(M2,A5:A{4 + len(camps)},K5:K{4 + len(camps)}),\"not found\")",
+        num2)
     ws.write(0, 13, "its CPA:", note)
     ws.set_column(0, 10, 12); ws.set_column(12, 13, 14)
 
@@ -191,7 +194,7 @@ def build() -> None:
                 "assumption. Change the orange cell; everything recalculates. "
                 "Goal Seek (Data > What-If Analysis) on B6 to 1.0 by changing "
                 "B4 finds the break-even value per conversion.")
-    ws.write(3, 0, "Value per conversion (USD) — ASSUMPTION", head)
+    ws.write(3, 0, "Value per conversion (USD): ASSUMPTION", head)
     ws.write_number(3, 1, VALUE_PER_CONVERSION, input_fmt)
     ws.data_validation(3, 1, 3, 1, {
         "validate": "decimal", "criteria": ">=", "value": 0,
@@ -314,12 +317,12 @@ def build() -> None:
         ws.write(3, c, col, head)
     items = [
         ("Criteo lift + intervals", "Vikram", "Done", "analysed by assignment (ITT)"),
-        ("Hillstrom lift + CUPED", "Vikram", "Done", "CUPED narrowed CI by ~0% — reported honestly"),
+        ("Hillstrom lift + CUPED", "Vikram", "Done", "CUPED narrowed CI by ~0%: reported honestly"),
         ("Marketing A/B lift", "Vikram", "Done", "control saw a PSA, not nothing"),
-        ("Lenta lift", "Vikram", "Done", "intended split undocumented — SRM recorded only"),
+        ("Lenta lift", "Vikram", "Done", "intended split undocumented: SRM recorded only"),
         ("X5 lift", "Vikram", "Done", "SMS promotion, labelled as such"),
         ("MegaFon lift", "Vikram", "Done", "synthetic features"),
-        ("Meta-analysis", "Vikram", "Done", "I² 99.7% — pooled number is a summary, not a law"),
+        ("Meta-analysis", "Vikram", "Done", "I² 99.7%: pooled number is a summary, not a law"),
         ("Uplift model", "Vikram", "Done", "Criteo strong, Hillstrom barely above random"),
         ("Olist monitor + diagnosis", "Vikram", "Done", "association only"),
         ("Tableau / Looker dashboards", "Vikram", "In progress", "CSV exports ready in dashboards/"),
@@ -390,7 +393,7 @@ def build() -> None:
 
     # ----------------------------------------------------------- Checks
     ws = wb.add_worksheet("Checks")
-    sheet_title(ws, "Python vs Excel — two independent calculations",
+    sheet_title(ws, "Python vs Excel: two independent calculations",
                 "Left: the Python pipeline's numbers (results/*.csv). Right: "
                 "this workbook's formulas. Open in Excel; every diff should "
                 "be ~0. A nonzero diff is a bug, and finding it is the point.")

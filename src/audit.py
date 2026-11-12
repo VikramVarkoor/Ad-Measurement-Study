@@ -1,4 +1,4 @@
-"""Phase 1: data audit — know what is in the data before trusting it.
+"""Phase 1: data audit: know what is in the data before trusting it.
 
 Produces, in results/:
   data_audit.csv        one row per dataset: rows, columns, duplicates, missing
@@ -59,7 +59,7 @@ def run() -> None:
                 "study": key, "n": total,
                 "observed_share": counts["n_t"] / total,
                 "expected_share": None, "chi2": None, "p_value": None,
-                "verdict": "intended split undocumented — recorded, not testable",
+                "verdict": "intended split undocumented: recorded, not testable",
             })
             continue
         r = srm_check(counts["n_t"], counts["n_c"], study.expected_treated_share)
@@ -68,7 +68,7 @@ def run() -> None:
             "observed_share": r["observed_share"],
             "expected_share": r["expected_share"],
             "chi2": r["chi2"], "p_value": r["p_value"],
-            "verdict": "MISMATCH — investigate" if r["mismatch"] else "split consistent with intention",
+            "verdict": "MISMATCH: investigate" if r["mismatch"] else "split consistent with intention",
         })
         if r["mismatch"]:
             log_rows.append({

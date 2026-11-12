@@ -1,4 +1,4 @@
-"""Phase 8: export the dashboard feeds — the same tables for both BI tools.
+"""Phase 8: export the dashboard feeds: the same tables for both BI tools.
 
 Tableau Public and Looker Studio are point-and-click tools, so the publishing
 step is manual; this script guarantees both tools read EXACTLY the tables the

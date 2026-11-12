@@ -1,4 +1,4 @@
-"""Phase 5: meta-analysis — pool the experiments, say how far to trust it.
+"""Phase 5: meta-analysis: pool the experiments, say how far to trust it.
 
 Effect size: log risk ratio (base rates span 0.2%–60%, so differences are not
 comparable but ratios are). Fixed-effect and DerSimonian–Laird random-effects,
@@ -83,7 +83,7 @@ def run() -> None:
     ticks = [0.9, 1.0, 1.2, 1.5, 2.0, 3.0]
     ax.set_xticks(ticks)
     ax.set_xticklabels([f"{t:g}" for t in ticks])
-    ax.set_xlabel("Risk ratio (treated / control), log scale — 1.0 = no effect")
+    ax.set_xlabel("Risk ratio (treated / control), log scale: 1.0 = no effect")
     ax.set_title("Every treatment lifted conversions, but by very different amounts")
     ax.grid(axis="y", visible=False)
     viz.save(fig, paths.FIGURES / "forest_plot.png")

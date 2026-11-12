@@ -1,4 +1,4 @@
-# Analysis plan — Ad Measurement Study
+# Analysis plan: Ad Measurement Study
 
 **Status:** committed before any analysis was run. The git timestamp of this file is the
 proof that the questions, metrics and inclusion rules were fixed before results were seen.
@@ -22,13 +22,13 @@ associations, never causes, and every deliverable says so.
 | Study | Treatment | Outcome (fixed in advance) | Expected design |
 |---|---|---|---|
 | Criteo Uplift v2.1 | Display advertising | `conversion` (binary) | ~14M users, ~85% treated |
-| Hillstrom | Any e-mail vs no e-mail (both e-mail arms pooled — they share one control, so they are **not** independent studies) | `conversion` (binary); `spend` secondary for CUPED | 64k customers, 2/3 treated |
+| Hillstrom | Any e-mail vs no e-mail (both e-mail arms pooled: they share one control, so they are **not** independent studies) | `conversion` (binary); `spend` secondary for CUPED | 64k customers, 2/3 treated |
 | Marketing A/B (Kaggle) | Ad vs public service announcement | `converted` (binary) | ~588k users, ~96% ad |
 | Lenta | Retail marketing communication | `response_att` (binary) | ~687k clients |
 | X5 RetailHero | SMS promotion | `target` (binary) | ~200k clients, 50/50 |
 | MegaFon | Telecom offer (synthetic features) | `conversion` (binary) | ~600k clients |
-| Facebook ads (KAG) | — observational campaign data, **not** an experiment | KPI layer only, never in the meta-analysis | ~1,143 ads |
-| Olist | — observational orders, **not** an experiment | Part B only | ~100k orders |
+| Facebook ads (KAG) |: observational campaign data, **not** an experiment | KPI layer only, never in the meta-analysis | ~1,143 ads |
+| Olist |: observational orders, **not** an experiment | Part B only | ~100k orders |
 
 If a file's real columns differ from the table above, the file wins and the difference is
 recorded in the data quality log.

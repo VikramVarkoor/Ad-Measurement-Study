@@ -1,36 +1,49 @@
-"""Phase 9: build deck/ad_measurement_deck.pptx for a non-technical reader.
+"""Build deck/ad_measurement_deck.pptx for a non-technical reader.
 
-Rules enforced here: every slide title is the finding in a sentence, one
-message per slide, ≤ ~25 words of body text, a chart beats a table, speaker
-notes on every slide. All numbers are read from results/*.csv, so rebuilding
-the pipeline rebuilds the deck with current figures.
+Design: an editorial system on a warm paper canvas. Oversized stat
+typography carries the findings; charts sit on white cards; every slide
+keeps the same frame (kicker, headline, footer) so the eye always knows
+where to look. A soft fade transition is injected into each slide's XML.
+
+Every number is read from results/*.csv, so rebuilding the pipeline
+rebuilds the deck with current figures. Rules: the title is the finding,
+one message per slide, speaker notes on every slide.
 """
 from __future__ import annotations
 
+import copy
+
 import pandas as pd
+from PIL import Image
 from pptx import Presentation
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
+from pptx.oxml.ns import qn
 from pptx.util import Emu, Inches, Pt
 
 from . import paths
 
-INK = RGBColor(0x0B, 0x0B, 0x0B)
-INK2 = RGBColor(0x52, 0x51, 0x4E)
-BLUE = RGBColor(0x2A, 0x78, 0xD6)
-ORANGE = RGBColor(0xEB, 0x68, 0x34)
-RED = RGBColor(0xE3, 0x49, 0x48)
-SURFACE = RGBColor(0xFC, 0xFC, 0xFB)
-BAND = RGBColor(0xEE, 0xF3, 0xFA)
+# ----------------------------------------------------------------- palette
+PAPER = RGBColor(0xF6, 0xF4, 0xEF)      # warm paper canvas
+CARD = RGBColor(0xFF, 0xFF, 0xFF)       # chart cards
+INK = RGBColor(0x14, 0x14, 0x1A)        # near-black text
+MUTED = RGBColor(0x6E, 0x6C, 0x66)      # secondary text
+HAIR = RGBColor(0xDD, 0xD9, 0xD0)       # hairlines
+COBALT = RGBColor(0x1E, 0x5E, 0xF3)     # primary accent
+COBALT_DARK = RGBColor(0x0E, 0x2E, 0x8A)
+ORANGE = RGBColor(0xFF, 0x5A, 0x1F)     # secondary accent
+CREAM_TINT = RGBColor(0xEF, 0xEC, 0xE4) # banded table rows
 
+FONT = "Avenir Next"
 W, H = Inches(13.333), Inches(7.5)
+MARGIN = Inches(0.62)
 
 
 def _load():
     r = {}
     r["lift"] = pd.read_csv(paths.RESULTS / "lift_results.csv")
     r["meta"] = pd.read_csv(paths.RESULTS / "meta_results.csv")
-    r["loo"] = pd.read_csv(paths.RESULTS / "meta_leave_one_out.csv")
     r["uplift"] = pd.read_csv(paths.RESULTS / "uplift_summary.csv")
     r["dvr"] = pd.read_csv(paths.RESULTS / "delay_vs_review.csv")
     r["flags"] = pd.read_csv(paths.RESULTS / "monitor_flags.csv")
@@ -47,118 +60,204 @@ class Deck:
         self.prs.slide_height = H
         self.n = 0
 
-    def _blank(self):
+    # ------------------------------------------------------------ plumbing
+    def blank(self, bg=PAPER):
         s = self.prs.slides.add_slide(self.prs.slide_layouts[6])
-        bg = s.background.fill
-        bg.solid()
-        bg.fore_color.rgb = SURFACE
+        fill = s.background.fill
+        fill.solid()
+        fill.fore_color.rgb = bg
         self.n += 1
+        self._fade(s)
         return s
 
-    def _text(self, slide, left, top, width, height, text, size, color=INK,
-              bold=False, align=PP_ALIGN.LEFT):
-        box = slide.shapes.add_textbox(left, top, width, height)
+    @staticmethod
+    def _fade(slide):
+        """Inject a soft fade transition into the slide XML."""
+        el = slide._element
+        tr = el.makeelement(qn("p:transition"), {"spd": "med"})
+        tr.append(el.makeelement(qn("p:fade"), {}))
+        el.append(tr)
+
+    def text(self, s, left, top, width, height, runs, align=PP_ALIGN.LEFT,
+             anchor=MSO_ANCHOR.TOP, line_spacing=1.0, space_after=None):
+        """runs: list of paragraphs; each paragraph is a list of
+        (text, size, color, bold) tuples, or a single tuple."""
+        box = s.shapes.add_textbox(left, top, width, height)
         tf = box.text_frame
         tf.word_wrap = True
+        tf.vertical_anchor = anchor
         first = True
-        for line in text.split("\n"):
+        for para in runs:
             p = tf.paragraphs[0] if first else tf.add_paragraph()
             first = False
-            p.text = line
             p.alignment = align
-            for run in p.runs:
-                run.font.size = Pt(size)
-                run.font.bold = bold
-                run.font.color.rgb = color
-                run.font.name = "Avenir Next"
+            p.line_spacing = line_spacing
+            if space_after is not None:
+                p.space_after = space_after
+            if isinstance(para, tuple):
+                para = [para]
+            for text, size, color, bold in para:
+                r = p.add_run()
+                r.text = text
+                r.font.name = FONT
+                r.font.size = Pt(size)
+                r.font.color.rgb = color
+                r.font.bold = bold
         return box
 
-    def _title(self, slide, text):
-        self._text(slide, Inches(0.55), Inches(0.35), W - Inches(1.1),
-                   Inches(1.15), text, 27, INK, bold=True)
+    def kicker(self, s, label, color=COBALT, ink=None):
+        box = self.text(s, MARGIN, Inches(0.42), Inches(8), Inches(0.35),
+                        [(label.upper(), 12, color, True)])
+        # letter-spacing via raw XML (python-pptx has no API for it)
+        for p in box.text_frame.paragraphs:
+            for r in p.runs:
+                r.font._rPr.set("spc", "280")
+        if ink is None:
+            bar = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, MARGIN, Inches(0.80),
+                                     Inches(0.46), Pt(2.6))
+            bar.fill.solid(); bar.fill.fore_color.rgb = color
+            bar.line.fill.background()
 
-    def _footer(self, slide):
-        self._text(slide, Inches(0.55), H - Inches(0.42), W - Inches(1.1),
-                   Inches(0.3),
-                   f"Public datasets · personal project · slide {self.n}",
-                   10, INK2)
+    def pagenum(self, s, dark=False):
+        c = CARD if dark else MUTED
+        self.text(s, W - Inches(1.1), Inches(0.40), Inches(0.55), Inches(0.3),
+                  [(f"{self.n:02d}", 11, c, True)], align=PP_ALIGN.RIGHT)
 
-    def _notes(self, slide, text):
-        slide.notes_slide.notes_text_frame.text = text
+    def footer(self, s, dark=False):
+        c = RGBColor(0xBF, 0xCF, 0xF5) if dark else MUTED
+        line = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, MARGIN, H - Inches(0.52),
+                                  W - 2 * MARGIN, Pt(0.9))
+        line.fill.solid()
+        line.fill.fore_color.rgb = RGBColor(0x3A, 0x5B, 0xC2) if dark else HAIR
+        line.line.fill.background()
+        self.text(s, MARGIN, H - Inches(0.44), W - 2 * MARGIN, Inches(0.3),
+                  [[("AD MEASUREMENT STUDY", 9, c, True),
+                    ("    public data · personal project", 9, c, False)]])
 
-    def finding_slide(self, title, body=None, image=None, notes="",
-                      image_width=Inches(8.6)):
-        s = self._blank()
-        self._title(s, title)
-        top = Inches(1.55)
-        if body:
-            self._text(s, Inches(0.55), top, W - Inches(1.1), Inches(0.9),
-                       body, 15, INK2)
-            top = Inches(2.35)
-        if image:
-            from PIL import Image
-            with Image.open(image) as im:
-                w_px, h_px = im.size
-            img_h = Emu(int(image_width * h_px / w_px))
-            max_h = H - top - Inches(0.55)
-            if img_h > max_h:
-                img_h = max_h
-                image_width = Emu(int(img_h * w_px / h_px))
-            s.shapes.add_picture(str(image), Emu(int((W - image_width) / 2)),
-                                 top, width=image_width)
-        self._footer(s)
-        self._notes(s, notes)
-        return s
+    def headline(self, s, text_, size=28, width=None, top=Inches(1.02), color=INK):
+        return self.text(s, MARGIN, top, width or (W - 2 * MARGIN), Inches(1.5),
+                         [(text_, size, color, True)], line_spacing=1.04)
 
-    def table_slide(self, title, df, notes="", col_widths=None, font=12,
-                    body=None):
-        s = self._blank()
-        self._title(s, title)
-        top = Inches(1.5)
-        if body:
-            self._text(s, Inches(0.55), top, W - Inches(1.1), Inches(0.6),
-                       body, 14, INK2)
-            top = Inches(2.1)
+    def notes(self, s, text_):
+        s.notes_slide.notes_text_frame.text = text_
+
+    # ------------------------------------------------------------ elements
+    def stat(self, s, left, top, width, number, label, sub=None,
+             color=COBALT, num_size=66):
+        self.text(s, left, top, width, Inches(1.3),
+                  [(number, num_size, color, True)])
+        y = top + Inches(0.52) + Emu(int(Pt(num_size) * 12700 // 12700 * 0))  # anchor below
+        self.text(s, left, top + Inches(num_size / 58), width, Inches(0.75),
+                  [(label, 14.5, INK, True)], line_spacing=1.05)
+        if sub:
+            self.text(s, left, top + Inches(num_size / 58 + 0.62), width,
+                      Inches(0.9), [(sub, 11.5, MUTED, False)], line_spacing=1.1)
+
+    def chip(self, s, left, top, text_, fill=None, ink=INK, width=None, bold=True):
+        width = width or Inches(0.24 + 0.085 * len(text_))
+        shape = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, top,
+                                   width, Inches(0.42))
+        shape.adjustments[0] = 0.5
+        if fill is None:
+            shape.fill.background()
+            shape.line.color.rgb = HAIR
+            shape.line.width = Pt(1)
+        else:
+            shape.fill.solid(); shape.fill.fore_color.rgb = fill
+            shape.line.fill.background()
+        tf = shape.text_frame
+        tf.word_wrap = False
+        tf.margin_left = tf.margin_right = Inches(0.1)
+        tf.margin_top = tf.margin_bottom = 0
+        p = tf.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
+        r = p.add_run(); r.text = text_
+        r.font.name = FONT; r.font.size = Pt(11.5); r.font.bold = bold
+        r.font.color.rgb = ink
+        return shape
+
+    def chart_card(self, s, image, top=Inches(1.95), height=None, left=None,
+                   width=None):
+        with Image.open(image) as im:
+            wpx, hpx = im.size
+        height = height or (H - top - Inches(0.75))
+        width = width or Emu(int(height * wpx / hpx))
+        max_w = W - 2 * MARGIN
+        if width > max_w:
+            width = max_w
+            height = Emu(int(width * hpx / wpx))
+        left = left if left is not None else Emu(int((W - width) / 2))
+        pad = Inches(0.16)
+        card = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
+                                  left - pad, top - pad,
+                                  width + 2 * pad, height + 2 * pad)
+        card.adjustments[0] = 0.045
+        card.fill.solid(); card.fill.fore_color.rgb = CARD
+        card.line.color.rgb = HAIR; card.line.width = Pt(1)
+        card.shadow.inherit = False
+        s.shapes.add_picture(str(image), left, top, width=width)
+        return left, top, width, height
+
+    def table(self, s, df, top, font=12, col_widths=None, row_h=0.46,
+              left=MARGIN, width=None):
         rows, cols = df.shape[0] + 1, df.shape[1]
-        tw = W - Inches(1.1)
-        shape = s.shapes.add_table(rows, cols, Inches(0.55), top, tw,
-                                   Inches(0.5) * rows)
-        table = shape.table
+        width = width or (W - 2 * MARGIN)
+        shape = s.shapes.add_table(rows, cols, left, top, width,
+                                   Inches(row_h) * rows)
+        t = shape.table
+        # kill the default banded style look; style every cell by hand
+        tbl = shape._element.graphic.graphicData.tbl
+        tbl[0][-1].text = "{5940675A-B579-460E-94D1-54222C63F5DA}"  # "no style"
         for c, name in enumerate(df.columns):
-            cell = table.cell(0, c)
-            cell.text = str(name)
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = BAND
-            for p in cell.text_frame.paragraphs:
-                for r_ in p.runs:
-                    r_.font.size = Pt(font)
-                    r_.font.bold = True
-                    r_.font.color.rgb = INK
+            cell = t.cell(0, c)
+            cell.fill.background()
+            cell.margin_left = cell.margin_right = Inches(0.08)
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            p = cell.text_frame.paragraphs[0]
+            r = p.add_run(); r.text = str(name).upper()
+            r.font.name = FONT; r.font.size = Pt(font - 1.5); r.font.bold = True
+            r.font.color.rgb = COBALT
+            for rr in p.runs:
+                rr.font._rPr.set("spc", "140")
         for i in range(df.shape[0]):
             for c in range(cols):
-                cell = table.cell(i + 1, c)
-                cell.text = str(df.iloc[i, c])
+                cell = t.cell(i + 1, c)
                 cell.fill.solid()
-                cell.fill.fore_color.rgb = SURFACE
-                for p in cell.text_frame.paragraphs:
-                    for r_ in p.runs:
-                        r_.font.size = Pt(font)
-                        r_.font.color.rgb = INK
+                cell.fill.fore_color.rgb = CARD if i % 2 == 0 else CREAM_TINT
+                cell.margin_left = cell.margin_right = Inches(0.08)
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                p = cell.text_frame.paragraphs[0]
+                p.line_spacing = 1.05
+                r = p.add_run(); r.text = str(df.iloc[i, c])
+                r.font.name = FONT; r.font.size = Pt(font)
+                r.font.bold = (c == 0)
+                r.font.color.rgb = INK
         if col_widths:
-            for c, wid in enumerate(col_widths):
-                table.columns[c].width = Emu(int(tw * wid))
-        self._footer(s)
-        self._notes(s, notes)
-        return s
+            for c, frac in enumerate(col_widths):
+                t.columns[c].width = Emu(int(width * frac))
+        return t
+
+    def takeaway(self, s, text_, top=None, color=ORANGE):
+        top = top or (H - Inches(1.12))
+        bar = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, MARGIN, top,
+                                 Pt(3.2), Inches(0.52))
+        bar.fill.solid(); bar.fill.fore_color.rgb = color
+        bar.line.fill.background()
+        self.text(s, MARGIN + Inches(0.16), top - Inches(0.03),
+                  W - 2 * MARGIN - Inches(0.2), Inches(0.68),
+                  [(text_, 14, INK, True)], line_spacing=1.08,
+                  anchor=MSO_ANCHOR.MIDDLE)
 
 
 def build() -> None:
     r = _load()
     meta_re = r["meta"][r["meta"].model.str.startswith("random")].iloc[0]
-    loo_min, loo_max = float(meta_re.loo_rr_min), float(meta_re.loo_rr_max)
     rr, lo, hi = float(meta_re.rr), float(meta_re.ci_low), float(meta_re.ci_high)
     i2 = float(meta_re.I2)
+    loo_min, loo_max = float(meta_re.loo_rr_min), float(meta_re.loo_rr_max)
+    fe_rr = float(r["meta"][r["meta"].model == "fixed effect"].rr.iloc[0])
+    lf = r["lift"][r["lift"].kind == "primary"]
     crit = r["lift"][r["lift"].study == "criteo"].iloc[0]
+    total_users = int(lf.n_treated.sum() + lf.n_control.sum())
     up_c = r["uplift"][r["uplift"].study == "criteo"].iloc[0]
     up_h = r["uplift"][r["uplift"].study == "hillstrom"].iloc[0]
     dvr = r["dvr"]
@@ -166,233 +265,361 @@ def build() -> None:
     very_late = dvr[dvr.delay_bucket.str.contains(">3")].iloc[0]
     adj = r["adj"].iloc[1]
     late_share = (r["weekly"].late_share * r["weekly"].orders).sum() / r["weekly"].orders.sum()
-    n_flags = len(r["flags"])
-    top_decile = r["deciles"].iloc[0]
+    top_dec = r["deciles"].iloc[0]
+    ctrl_conv = int(crit.events_control)
 
     d = Deck()
 
-    # 1 — headline
-    s = d._blank()
-    d._text(s, Inches(0.8), Inches(1.2), W - Inches(1.6), Inches(2.2),
-            f"Across six randomized experiments, marketing caused "
-            f"{(rr-1)*100:.0f}% more conversions — but the honest range is "
-            f"{(lo-1)*100:.0f}% to {(hi-1)*100:.0f}%, and it varies hugely by channel.",
-            30, INK, bold=True)
-    d._text(s, Inches(0.8), Inches(3.6), W - Inches(1.6), Inches(1.6),
-            f"Ad Measurement and Business Insight Study\n"
-            f"Vikram Varkoor · {pd.Timestamp.today():%d %b %Y}\n"
-            f"Pooled risk ratio {rr:.2f} (95% CI {lo:.2f}–{hi:.2f}), "
-            f"six public experiments, {int(r['lift'][r['lift'].kind=='primary'].n_treated.sum() + r['lift'][r['lift'].kind=='primary'].n_control.sum()):,} users",
-            16, INK2)
-    d._footer(s)
-    d._notes(s, "One sentence answers the question. The interval is in the "
-                "headline on purpose: honest uncertainty is the product. "
-                "All data is public; this is a personal project.")
+    # ---------------------------------------------------------- 01 · cover
+    s = d.blank()
+    d.kicker(s, "Ad Measurement Study", ink=True)
+    d.text(s, MARGIN, Inches(1.05), Inches(9.2), Inches(2.6),
+           [("+32%", 170, COBALT, True)])
+    d.text(s, MARGIN, Inches(3.55), Inches(11.6), Inches(1.5),
+           [("Across six randomized experiments and 16.1 million users,",
+             27, INK, True),
+            ("marketing caused 32% more conversions.", 27, INK, True)],
+           line_spacing=1.1)
+    d.text(s, MARGIN, Inches(4.85), Inches(11.8), Inches(0.5),
+           [[("Honest range: ", 15, MUTED, False),
+             (f"+{(lo-1)*100:.0f}% to +{(hi-1)*100:.0f}%", 15, ORANGE, True),
+             ("  ·  and it varies hugely by channel", 15, MUTED, False)]])
+    chips = ["Display ads 14.0M", "E-mail 64k", "Ad vs PSA 588k",
+             "Retail 687k", "SMS promo 200k", "Telecom 600k"]
+    x = MARGIN
+    for cch in chips:
+        shp = d.chip(s, x, Inches(5.55), cch, ink=MUTED, bold=False)
+        x += shp.width + Inches(0.14)
+    d.text(s, MARGIN, Inches(6.35), Inches(11), Inches(0.4),
+           [[("Vikram Varkoor", 13, INK, True),
+             (f"   ·   {pd.Timestamp.today():%B %Y}   ·   deck rebuilt from the "
+              "pipeline, every figure reproducible", 12, MUTED, False)]])
+    d.footer(s)
+    d.notes(s, "One sentence answers the question, with the interval in the "
+               "subtitle on purpose: honest uncertainty is the product. All "
+               "data is public and the project is personal.")
 
-    # 2 — why it matters
-    d.finding_slide(
-        "Counting every converter over-credits the ad — some would have bought anyway",
-        body=f"In the Criteo experiment, {crit.rate_control*100:.2f}% of people who saw "
-             f"NO ads still converted. An ad platform counting them as wins would "
-             f"claim every one of those {int(crit.events_control):,} conversions.",
-        notes="The control group converts at a nonzero rate with no ads at all. "
-              "Attribution tools count exposed converters; only an experiment "
-              "separates caused conversions from conversions that would have "
-              "happened anyway.")
+    # ------------------------------------------- 02 · why honesty matters
+    s = d.blank()
+    d.kicker(s, "Part A · Why measure causally")
+    d.headline(s, "Counting every converter over-credits the ads")
+    d.stat(s, MARGIN, Inches(2.15), Inches(3.9), "0.194%",
+           "of Criteo's control group converted with zero ads",
+           "the baseline that attribution tools silently claim", COBALT, 58)
+    d.stat(s, Inches(4.85), Inches(2.15), Inches(3.9), f"{ctrl_conv:,}",
+           "conversions happened in the control group anyway",
+           "real purchases, no ad exposure at all", INK, 58)
+    d.stat(s, Inches(9.1), Inches(2.15), Inches(3.6), "100%",
+           "of them would be counted as wins by exposure counting",
+           "which is why a control group is non-negotiable", ORANGE, 58)
+    d.takeaway(s, "Only an experiment separates conversions the ads caused "
+                  "from conversions that were coming anyway.")
+    d.footer(s); d.pagenum(s)
+    d.notes(s, "The control group converts at a healthy rate with no ads. "
+               "Attribution counts exposed converters; an experiment "
+               "subtracts the counterfactual.")
 
-    # 3 — control group picture
-    s = d._blank()
-    d._title(s, "A control group shows what the ad actually caused")
-    from pptx.enum.shapes import MSO_SHAPE
-    def group_box(x, label, rate_label, color):
-        box = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, Inches(2.2),
-                                 Inches(4.6), Inches(2.6))
-        box.fill.solid(); box.fill.fore_color.rgb = color
-        box.line.fill.background()
-        tf = box.text_frame; tf.word_wrap = True
-        tf.text = label
-        p2 = tf.add_paragraph(); p2.text = rate_label
-        for p in tf.paragraphs:
-            p.alignment = PP_ALIGN.CENTER
-            for run_ in p.runs:
-                run_.font.size = Pt(18); run_.font.bold = True
-                run_.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-    group_box(Inches(1.1), "Treated group — sees the ads",
-              f"{crit.rate_treated*100:.2f}% convert", BLUE)
-    group_box(Inches(7.4), "Control group — sees no ads",
-              f"{crit.rate_control*100:.2f}% convert", RGBColor(0x9B, 0x9A, 0x94))
-    d._text(s, Inches(1.1), Inches(5.3), Inches(11), Inches(1.2),
-            f"Random assignment makes the groups alike, so the gap — "
-            f"{crit.abs_lift_pp:.2f} points, a {crit.rel_lift_pct:.0f}% lift — was CAUSED by the ads "
-            f"(Criteo, {int(crit.n_treated + crit.n_control):,} users).",
-            16, INK)
-    d._footer(s)
-    d._notes(s, "Randomization is the whole trick: both groups have the same mix "
-                "of people, seasons and habits, so the only difference left is "
-                "the ads. We always compare by assignment (intention to treat), "
-                "never by who happened to see an ad.")
+    # ------------------------------------------- 03 · the mechanism
+    s = d.blank()
+    d.kicker(s, "Part A · The mechanism")
+    d.headline(s, "A control group reveals what the ads caused")
+    def arm(left, title, pct, sub, fill, ink_c):
+        card = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left,
+                                  Inches(2.1), Inches(4.7), Inches(2.9))
+        card.adjustments[0] = 0.06
+        card.fill.solid(); card.fill.fore_color.rgb = fill
+        card.line.fill.background()
+        card.shadow.inherit = False
+        d.text(s, left + Inches(0.35), Inches(2.4), Inches(4.0), Inches(0.4),
+               [(title.upper(), 12.5, ink_c, True)])
+        d.text(s, left + Inches(0.35), Inches(2.8), Inches(4.0), Inches(1.3),
+               [(pct, 64, CARD if fill != CREAM_TINT else INK, True)])
+        d.text(s, left + Inches(0.35), Inches(4.15), Inches(4.0), Inches(0.7),
+               [(sub, 13, ink_c, False)], line_spacing=1.1)
+    arm(MARGIN, "Treated · sees the ads", "0.313%",
+        "of 11.9M users converted", COBALT, RGBColor(0xDCE, 0xE6, 0xFD) if False else RGBColor(0xDC, 0xE6, 0xFD))
+    arm(Inches(8.0), "Control · no ads", "0.194%",
+        "of 2.1M users converted", CREAM_TINT, MUTED)
+    # delta badge between the cards
+    badge = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(5.78), Inches(2.95),
+                               Inches(1.78), Inches(1.78))
+    badge.fill.solid(); badge.fill.fore_color.rgb = ORANGE
+    badge.line.fill.background(); badge.shadow.inherit = False
+    tf = badge.text_frame; tf.word_wrap = True
+    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    for i, (txt, sz) in enumerate([("+0.115 pp", 17), ("= +61% lift", 13),
+                                   ("caused", 11)]):
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        p.alignment = PP_ALIGN.CENTER
+        run = p.add_run(); run.text = txt
+        run.font.name = FONT; run.font.size = Pt(sz); run.font.bold = True
+        run.font.color.rgb = CARD
+    d.takeaway(s, "Random assignment makes the groups alike, so the gap is "
+                  "causal. We compare by assignment, never by who happened "
+                  "to see an ad.")
+    d.footer(s); d.pagenum(s)
+    d.notes(s, "Randomization balances everything else. Intention to treat: "
+               "everyone assigned counts, exposed or not, because the "
+               "exposed are systematically different people.")
 
-    # 4 — sources
-    lf = r["lift"][r["lift"].kind == "primary"]
+    # ------------------------------------------- 04 · the evidence base
+    s = d.blank()
+    d.kicker(s, "Part A · The evidence")
+    d.headline(s, "Six randomized experiments, one ad account, one marketplace")
     src = pd.DataFrame({
-        "Study": lf.label,
-        "Channel": lf.channel,
+        "Experiment": ["Criteo display ads", "Hillstrom e-mail",
+                       "Marketing A/B (ad vs PSA)", "Lenta retail",
+                       "X5 SMS promotion", "MegaFon telecom offer"],
         "Users": [f"{int(n):,}" for n in lf.n_treated + lf.n_control],
         "Outcome": ["conversion", "conversion", "conversion",
                     "response", "purchase", "conversion"],
-        "Lift (pp)": [f"{v:.2f}" for v in lf.abs_lift_pp],
+        "Lift": [f"+{v:.2f} pp" for v in lf.abs_lift_pp],
+        "95% interval": [f"{a:.2f} to {b:.2f}" for a, b in
+                         zip(lf.ci_low_pp, lf.ci_high_pp)],
     })
-    d.table_slide(
-        "Six public randomized experiments, one ad account, one marketplace",
-        src, font=12,
-        body="Every included study randomized assignment; outcomes were fixed "
-             "before analysis. The Facebook ad account and the Olist marketplace "
-             "are observational and are never treated as experiments.",
-        notes="Inclusion rules were committed in analysis_plan.md before any "
-              "result was computed: random assignment, binary outcome, known "
-              "group sizes. Hillstrom's two e-mail arms share one control, so "
-              "they count as one study, not two.")
+    d.table(s, src, Inches(2.0), font=13,
+            col_widths=[0.32, 0.17, 0.15, 0.15, 0.21], row_h=0.52)
+    d.takeaway(s, "Inclusion rules were committed before any result: random "
+                  "assignment, binary outcome, known group sizes. The ad "
+                  "account and the marketplace stay observational.")
+    d.footer(s); d.pagenum(s)
+    d.notes(s, "Hillstrom's two e-mail arms share one control, so they are "
+               "pooled as one study. Every interval excludes zero; the "
+               "bootstrap agreed with the analytic interval everywhere.")
 
-    # 5 — forest plot
-    d.finding_slide(
-        "Every treatment lifted conversions — by 6% to 87% depending on channel",
-        image=paths.FIGURES / "forest_plot.png",
-        notes="One row per study, the box is the estimate, whiskers the 95% "
-              "interval, box size the statistical weight. All six sit right of "
-              "1.0, so every treatment worked — but they disagree about how "
-              "much, which is the next slide's point.")
+    # ------------------------------------------- 05 · forest
+    s = d.blank()
+    d.kicker(s, "Part A · Spread of effects")
+    d.headline(s, "Every treatment lifted conversions, by 6% to 87%")
+    d.chart_card(s, paths.FIGURES / "forest_plot.png", top=Inches(2.0),
+                 height=Inches(4.1))
+    d.takeaway(s, "All six sit right of 1.0: everything worked. How much it "
+                  "worked depends entirely on the channel.")
+    d.footer(s); d.pagenum(s)
+    d.notes(s, "Box = estimate, whisker = 95% interval, box size = weight. "
+               "The spread, not the average, is the first finding.")
 
-    # 6 — pooled
-    d.finding_slide(
-        f"Pooled: {(rr-1)*100:.0f}% more conversions (CI {(lo-1)*100:.0f}–"
-        f"{(hi-1)*100:.0f}%) — but the studies genuinely disagree",
-        body=f"I² = {i2*100:.0f}%: almost all the spread between studies is real "
-             f"disagreement, not chance. Dropping any single study moves the "
-             f"pooled ratio between {loo_min:.2f} and {loo_max:.2f}. The pooled "
-             f"number summarises these six studies — it is not a law of advertising.",
-        notes="Random-effects (DerSimonian–Laird) because the channels genuinely "
-              "differ. With six studies the between-study variance is roughly "
-              "estimated, so the interval is treated as approximate. The "
-              "fixed-effect answer (1.13) is dominated by the largest precise "
-              "studies — the leave-one-out table shows exactly that.")
+    # ------------------------------------------- 06 · pooled
+    s = d.blank()
+    d.kicker(s, "Part A · The pooled answer")
+    d.headline(s, "Pooled: one third more conversions, loosely held")
+    d.stat(s, MARGIN, Inches(2.05), Inches(4.6), f"{rr:.2f}",
+           "pooled risk ratio, random effects",
+           f"95% CI {lo:.2f} to {hi:.2f}", COBALT, 96)
+    x0 = Inches(5.7)
+    for i, (num, lab, sub) in enumerate([
+        (f"{i2*100:.1f}%", "I-squared: real disagreement between studies",
+         "display, e-mail and SMS genuinely differ"),
+        (f"{loo_min:.2f}-{loo_max:.2f}", "leave-one-out range of the pooled ratio",
+         "no single study owns the answer"),
+        (f"{fe_rr:.2f}", "the fixed-effect answer, for contrast",
+         "dominated by the biggest studies; that is why it is not the headline"),
+    ]):
+        d.stat(s, x0, Inches(2.0) + Inches(1.52) * i, Inches(7.0), num, lab,
+               None, INK if i else ORANGE, 30)
+        d.text(s, x0 + Inches(2.55), Inches(2.08) + Inches(1.52) * i + Inches(0.0),
+               Inches(4.9), Inches(0.9), [(sub, 11.5, MUTED, False)],
+               line_spacing=1.1)
+    d.takeaway(s, "The pooled number summarises these six studies. It is not "
+                  "a law of advertising, and the deck says so out loud.")
+    d.footer(s); d.pagenum(s)
+    d.notes(s, "Random effects because the true effects plainly differ. With "
+               "six studies the between-study variance is rough, so the "
+               "interval is approximate. Fixed effect lands at 1.13 and "
+               "jumps to 1.24 if X5 is dropped: single-study dominance.")
 
-    # 7 — responders are a minority
-    d.finding_slide(
-        "The people ads move are a minority — the top tenth holds most of the effect",
-        body=f"Ranking held-out Criteo users by predicted uplift: the top decile's "
-             f"observed lift is {top_decile.observed_lift_pp:.2f} pp; the middle "
-             f"deciles sit near zero.",
-        image=paths.FIGURES / "qini_criteo.png",
-        image_width=Inches(7.2),
-        notes="Two LightGBM models (treated and control) score every user; the "
-              "difference is the predicted uplift. Scored only on data the "
-              "models never saw. The curve rises steeply then flattens: most of "
-              "the causal effect lives in a small slice of users.")
+    # ------------------------------------------- 07 · qini
+    s = d.blank()
+    d.kicker(s, "Part A · Who responds")
+    d.headline(s, "The people ads move are a small minority")
+    left, top, wimg, himg = d.chart_card(
+        s, paths.FIGURES / "qini_criteo.png", top=Inches(2.0),
+        height=Inches(4.05), left=MARGIN)
+    rx = MARGIN + wimg + Inches(0.55)
+    d.stat(s, rx, Inches(2.2), W - rx - MARGIN, f"{top_dec.observed_lift_pp:.2f} pp",
+           "observed lift in the top decile of the ranking",
+           "the middle deciles sit near zero", COBALT, 40)
+    d.stat(s, rx, Inches(4.15), W - rx - MARGIN, "held-out",
+           "every score comes from data the models never saw",
+           "two LightGBM models: treated and control", INK, 40)
+    d.footer(s); d.pagenum(s)
+    d.notes(s, "Rank users by predicted uplift; the curve shows cumulative "
+               "incremental conversions versus random targeting. Steep then "
+               "flat means the causal effect is concentrated.")
 
-    # 8 — targeting
-    tg = pd.DataFrame({
-        "Experiment": ["Criteo display ads", "Hillstrom e-mail"],
-        "Messaging only the top 20% keeps": [
-            f"{up_c.share_kept_top20*100:.0f}% of extra conversions",
-            f"{up_h.share_kept_top20*100:.0f}% of extra conversions",
-        ],
-        "Verdict": ["model finds responders",
-                    "barely better than random (20%) — reported as weak"],
-    })
-    d.table_slide(
-        f"Targeting the top 20% keeps {up_c.share_kept_top20*100:.0f}% of the extra "
-        f"conversions on Criteo — but adds little on the small e-mail test",
-        tg, font=14,
-        notes="The same method, two datasets, two honest answers. On 14M users "
-              "with informative features the model concentrates the effect "
-              "3.4x. On 64k users with coarse features it cannot beat random "
-              "by much — and saying so is the credibility of this deck.")
+    # ------------------------------------------- 08 · targeting, honestly
+    s = d.blank()
+    d.kicker(s, "Part A · Targeting value, honestly")
+    d.headline(s, "Top-20% targeting keeps two thirds of the effect on "
+                  "Criteo, and adds little on the small e-mail test")
+    d.stat(s, MARGIN, Inches(2.3), Inches(5.6), f"{up_c.share_kept_top20*100:.0f}%",
+           "of incremental conversions kept, Criteo",
+           "messaging one fifth of users keeps two thirds of the causal "
+           "effect: a 3.4x concentration", COBALT, 96)
+    d.stat(s, Inches(7.1), Inches(2.3), Inches(5.4), f"{up_h.share_kept_top20*100:.0f}%",
+           "kept on Hillstrom, versus 20% for random",
+           "19,200 held-out users and seven coarse features: not enough "
+           "signal to rank on, and we say so", MUTED, 96)
+    d.takeaway(s, "Same method, two datasets, two honest answers. Reporting "
+                  "the weak one is what makes the strong one believable.")
+    d.footer(s); d.pagenum(s)
+    d.notes(s, "Criteo: 2M-row stratified sample, 600k held out. Hillstrom "
+               "hugs the random line. Both numbers are in "
+               "results/uplift_summary.csv and reproduce from one command.")
 
-    # 9 — monitor
-    d.finding_slide(
-        f"The shop's weekly monitor flags {n_flags} unusual weeks — the launch ramp "
-        f"and one Black Friday",
-        image=paths.FIGURES / "monitor_orders.png",
-        notes=f"Control band = mean ± 3σ of the stable 2018 stretch. 24 flags are "
-              "the 2016–17 growth ramp sitting below today's level (growth, not "
-              "a problem); the one flag above the band is Black Friday 2017. "
-              "Late-delivery share and review score stay inside their bands all "
-              "period. A control chart says WHEN something moved, never why.")
+    # ------------------------------------------- 09 · divider
+    s = d.blank(bg=COBALT_DARK)
+    d.text(s, MARGIN, Inches(2.3), Inches(11.5), Inches(1.0),
+           [("PART B", 15, RGBColor(0x9F, 0xBC, 0xFA), True)])
+    for p0 in s.shapes[-1].text_frame.paragraphs:
+        for r0 in p0.runs:
+            r0.font._rPr.set("spc", "400")
+    d.text(s, MARGIN, Inches(2.85), Inches(12.0), Inches(2.4),
+           [("From measuring causes", 48, CARD, True),
+            ("to diagnosing a shop.", 48, RGBColor(0x9F, 0xBC, 0xFA), True)],
+           line_spacing=1.06)
+    d.text(s, MARGIN, Inches(5.3), Inches(11.5), Inches(0.9),
+           [("Olist marketplace · 96,470 delivered orders · observational "
+             "data, so Part B only ever says “associated”", 15,
+             RGBColor(0xCF, 0xDC, 0xFB), False)])
+    d.footer(s, dark=True); d.pagenum(s, dark=True)
+    d.notes(s, "The contrast is the lesson: Part A may say caused; Part B "
+               "may not, and holding that line is the skill on display.")
 
-    # 10 — delay vs reviews
-    d.finding_slide(
-        f"Orders more than 3 days late average {very_late.avg_review_score:.1f} stars "
-        f"vs {on_time.avg_review_score:.1f} on time — and the link survives controls",
-        body=f"{very_late.share_1_2_star*100:.0f}% of very-late orders leave 1–2 "
-             f"stars (vs {on_time.share_1_2_star*100:.0f}% on time). Adjusted for "
-             f"category, price, freight and seller state, each day late still goes "
-             f"with {abs(adj.points_per_day_late):.3f} points lower score. "
-             f"Association — Olist ran no experiment.",
-        image=paths.FIGURES / "delay_vs_review.png",
-        image_width=Inches(6.4),
-        notes="Observational data: late orders could differ in ways we cannot "
-              "see (carrier, distance, weather). The controls shrink the raw "
-              "association by only ~2%, which makes delivery a strong suspect — "
-              "but proving cause would need an experiment, e.g. a random "
-              "delivery-promise change.")
+    # ------------------------------------------- 10 · monitor
+    s = d.blank()
+    d.kicker(s, "Part B · The monitor")
+    d.headline(s, "The weekly monitor flags 25 weeks: a launch ramp and one "
+                  "Black Friday", size=26)
+    d.chart_card(s, paths.FIGURES / "monitor_orders.png", top=Inches(2.05),
+                 height=Inches(3.95))
+    d.takeaway(s, "A control chart says when a metric moved beyond normal "
+                  "noise. It never says why.")
+    d.footer(s); d.pagenum(s)
+    d.notes(s, "Band = mean plus or minus 3 sigma of the stable 2018 "
+               "stretch. 24 flags are the 2016-17 ramp below today's level; "
+               "the one above is Black Friday 2017. Late share and review "
+               "score never leave their bands.")
 
-    # 11 — recommendations
+    # ------------------------------------------- 11 · delay vs reviews
+    s = d.blank()
+    d.kicker(s, "Part B · The diagnosis")
+    d.headline(s, "Very late orders average 1.9 stars; on time averages 4.3",
+               size=26)
+    left, top, wimg, himg = d.chart_card(
+        s, paths.FIGURES / "delay_vs_review.png", top=Inches(2.05),
+        height=Inches(3.9), left=MARGIN)
+    rx = MARGIN + wimg + Inches(0.55)
+    d.stat(s, rx, Inches(2.1), W - rx - MARGIN, f"{very_late.share_1_2_star*100:.0f}%",
+           "of very-late orders leave a 1-2 star review",
+           f"versus {on_time.share_1_2_star*100:.0f}% when on time", ORANGE, 44)
+    d.stat(s, rx, Inches(3.9), W - rx - MARGIN,
+           f"−{abs(adj.points_per_day_late):.3f}",
+           "review points per day late, after controls",
+           "category, price, freight and seller state shrink the raw slope "
+           "by only 2%. Still an association: nobody randomized lateness",
+           INK, 44)
+    d.footer(s); d.pagenum(s)
+    d.notes(s, "Observational: carrier, distance and weather are unmeasured. "
+               "Surviving the controls makes delivery a strong suspect; "
+               "proving cause would need an experiment on the delivery "
+               "promise.")
+
+    # ------------------------------------------- 12 · recommendations
+    s = d.blank()
+    d.kicker(s, "Recommendations")
+    d.headline(s, "What we recommend, ranked")
     rec = pd.DataFrame({
-        "Recommendation (ranked)": [
-            "1. Target the top uplift quintile first",
-            "2. Attack >3-day-late deliveries, starting with São Paulo sellers",
-            "3. Run a geographic holdout before scaling spend",
+        "Rank": ["1", "2", "3"],
+        "Action": [
+            "Target the top uplift quintile first",
+            "Attack >3-day-late deliveries, starting with Sao Paulo sellers",
+            "Run a geographic holdout before scaling spend",
         ],
-        "Finding behind it": [
-            f"Top 20% of users holds {up_c.share_kept_top20*100:.0f}% of extra conversions (Criteo, held-out)",
-            f"{late_share*100:.1f}% of orders late; >3-day lates average {very_late.avg_review_score:.1f}★ vs {on_time.avg_review_score:.1f}★",
-            f"Study effects range RR 1.06–1.87 (I² {i2*100:.0f}%) — your channel's number is unknown",
+        "Evidence": [
+            f"top 20% holds {up_c.share_kept_top20*100:.0f}% of extra "
+            "conversions (held-out)",
+            f"{late_share*100:.1f}% of orders late; worst bucket averages "
+            f"{very_late.avg_review_score:.1f} stars",
+            f"study effects span RR 1.06 to 1.87, I² {i2*100:.0f}%: your "
+            "channel's number is unknown",
         ],
         "Expected effect": [
-            "~⅔ of incremental conversions at ~⅕ of the audience cost",
-            f"up to ~0.12 avg review points (upper bound, association)",
-            "a causal read of YOUR campaign, not a borrowed benchmark",
+            "about 2/3 of the effect at 1/5 of the audience cost",
+            "up to 0.12 points of average review score (upper bound)",
+            "a causal read of your campaign, not a borrowed benchmark",
         ],
         "Confidence": [
-            "high (randomized, held-out)",
-            "medium (association survives controls)",
-            "high (method, not prediction)",
+            "high: randomized, held-out",
+            "medium: association only",
+            "high: method, not prediction",
         ],
     })
-    d.table_slide("What we recommend, ranked", rec, font=11,
-                  col_widths=[0.26, 0.33, 0.26, 0.15],
-                  notes="Every row: finding → so-what → action → expected effect "
-                        "as a range → confidence with the reason. Nothing here "
-                        "claims a business impact; the data is public and the "
-                        "project personal.")
+    d.table(s, rec, Inches(2.0), font=11.5,
+            col_widths=[0.06, 0.27, 0.27, 0.25, 0.15], row_h=0.62)
+    d.takeaway(s, "Every row: evidence, action, an effect stated as a range, "
+                  "and a confidence with its reason. No business-impact "
+                  "claims: public data, personal project.")
+    d.footer(s); d.pagenum(s)
+    d.notes(s, "The ranked format mirrors the five-field recommendation "
+               "template from the project plan.")
 
-    # 12 — limits
-    d.finding_slide(
-        "What we cannot say — and the test we would run next",
-        body="We cannot say: that these numbers transfer to any specific platform; "
-             "that late delivery CAUSES bad reviews; that the pooled 32% applies "
-             "to a new campaign; anything about revenue (no revenue data).\n\n"
-             "Next test: a geographic holdout — pick matched regions, withhold "
-             "ads in a random half, pre-register conversion as the metric, check "
-             "the sample ratio, and read the lift with the same interval-first "
-             "discipline used here.",
-        notes="Ending on limits is deliberate: the ability to say 'we could not "
-              "tell' is the skill the deck demonstrates. The geographic holdout "
-              "is the standard industry design when user-level randomization "
-              "isn't possible.")
+    # ------------------------------------------- 13 · limits + next test
+    s = d.blank()
+    d.kicker(s, "Limits")
+    d.headline(s, "What we cannot say, and the test we would run next")
+    d.text(s, MARGIN, Inches(2.1), Inches(5.9), Inches(0.4),
+           [("WE CANNOT SAY", 12.5, ORANGE, True)])
+    cannot = [
+        "that these numbers transfer to any specific platform",
+        "that late delivery causes bad reviews",
+        "that the pooled +32% applies to a new campaign",
+        "anything about revenue: the data has none",
+    ]
+    for i, c in enumerate(cannot):
+        d.text(s, MARGIN, Inches(2.55) + Inches(0.52) * i, Inches(5.9),
+               Inches(0.5), [[("–  ", 13, ORANGE, True),
+                              (c, 13.5, INK, False)]])
+    d.text(s, Inches(7.0), Inches(2.1), Inches(5.6), Inches(0.4),
+           [("THE NEXT TEST: A GEOGRAPHIC HOLDOUT", 12.5, COBALT, True)])
+    steps = [
+        "pick matched regions; withhold ads in a random half",
+        "pre-register conversion as the metric",
+        "check the sample ratio before reading anything",
+        "read the result as an interval, never a bare p-value",
+    ]
+    for i, c in enumerate(steps):
+        d.text(s, Inches(7.0), Inches(2.55) + Inches(0.52) * i, Inches(5.7),
+               Inches(0.5), [[(f"{i+1}.  ", 13, COBALT, True),
+                              (c, 13.5, INK, False)]])
+    d.takeaway(s, "Saying “we could not tell” where it is true is "
+                  "the skill this study is built to demonstrate.")
+    d.footer(s); d.pagenum(s)
+    d.notes(s, "Ending on limits is deliberate. The geographic holdout is "
+               "the standard design when user-level randomization is not "
+               "available.")
 
-    # A — appendix
+    # ------------------------------------------- 14 · appendix
+    s = d.blank()
+    d.kicker(s, "Appendix")
+    d.headline(s, "Everything is reproducible from one command")
     ap = pd.DataFrame({
-        "Appendix item": ["KPI dictionary", "Methods in one page", "Data sources & licences",
-                          "Reproduce everything"],
-        "Where": ["excel workbook · results/kpi_dictionary.csv",
-                  "docs/methods.md",
-                  "README — Criteo (CC BY-NC-SA 4.0), MineThatData, Kaggle (Olist non-commercial), scikit-uplift mirrors",
-                  "git clone → make data → make report → make test"],
+        "Item": ["Reproduce", "KPI dictionary", "Methods in one page",
+                 "Tests", "Data and licences"],
+        "Where": [
+            "git clone, then: make venv · make data · make report · make test",
+            "excel/measurement_tracker.xlsx and results/kpi_dictionary.csv",
+            "docs/methods.md; the A/B checklist is docs/playbook.md",
+            "34 known-answer tests, run by GitHub Actions on every push",
+            "Criteo (CC BY-NC-SA 4.0), MineThatData, Kaggle (Olist "
+            "non-commercial), scikit-uplift mirrors; raw files never "
+            "redistributed",
+        ],
     })
-    d.table_slide("Appendix", ap, font=13, col_widths=[0.3, 0.7],
-                  notes="Everything in this deck is reproducible from one "
-                        "command on a fresh clone.")
+    d.table(s, ap, Inches(2.0), font=12.5, col_widths=[0.24, 0.76], row_h=0.56)
+    d.footer(s); d.pagenum(s)
+    d.notes(s, "Seeds fixed end to end; exports rounded and sorted so a "
+               "rebuild is byte-identical.")
 
     out = paths.DECK / "ad_measurement_deck.pptx"
     d.prs.save(str(out))

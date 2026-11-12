@@ -4,7 +4,7 @@ A one-page checklist. If a test fails a question, the questions after it
 barely matter. Written from the experiments in this repository; every
 question has a worked example in `results/`.
 
-## 1. Was assignment random — and by user?
+## 1. Was assignment random, and by user?
 Randomization is what makes the comparison fair. Assignment by day, store or
 region instead of user needs a different analysis (clustered errors) and much
 more caution. *Unclear assignment = not an experiment; read it like
@@ -12,9 +12,9 @@ observational data.*
 
 ## 2. Does the split match the intended split? (sample ratio check)
 Compare observed group counts to the intended ratio with a chi-square test.
-A p-value below 0.001 means the randomization or the logging is broken —
+A p-value below 0.001 means the randomization or the logging is broken -
 stop and investigate before reading any lift.
-*Worked examples: `results/srm.csv` — all six studies pass or are recorded
+*Worked examples: `results/srm.csv`: all six studies pass or are recorded
 as "intended split undocumented".*
 
 ## 3. Was the outcome chosen before looking?
@@ -34,10 +34,10 @@ that hides it.
 
 ## 6. Everyone assigned, nobody dropped? (intention to treat)
 Dropping users who were assigned ads but never saw them breaks the
-randomization — the exposed are systematically different people. Compare
+randomization: the exposed are systematically different people. Compare
 everyone assigned vs everyone assigned, even if it dilutes the lift.
 
-## 7. How many segments were examined — and corrected for?
+## 7. How many segments were examined, and corrected for?
 Twenty segments at α=0.05 produce one false "winner" on average. Demand the
 count of segments examined and a correction (Bonferroni or Benjamini–
 Hochberg). *Worked example: `results/segments_hillstrom.csv` states m=8 and
@@ -51,11 +51,11 @@ the attributed one.
 ## 9. Did it run a full cycle?
 Anything shorter than one complete week (better: two) confounds the
 treatment with day-of-week. Watch for tests stopped early "because it was
-already significant" — that inflates false positives.
+already significant": that inflates false positives.
 
 ## 10. What decision does each outcome trigger, written in advance?
 "If the CI excludes +2%, scale; if it excludes +5% at the top, stop; else
 extend two weeks." If no decision was written down, the test was theatre.
 
 ---
-*Ad Measurement Study — public datasets, personal project.*
+*Ad Measurement Study: public datasets, personal project.*

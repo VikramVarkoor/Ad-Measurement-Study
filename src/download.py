@@ -50,7 +50,7 @@ def run() -> None:
 
     from .experiments import materialize
     materialize("criteo")
-    print("done — raw files in data/raw/, criteo materialized to parquet")
+    print("done: raw files in data/raw/, criteo materialized to parquet")
 
 
 if __name__ == "__main__":

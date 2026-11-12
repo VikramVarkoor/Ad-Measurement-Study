@@ -1,4 +1,4 @@
-"""Phase 4: two-model uplift — who did the marketing actually move?
+"""Phase 4: two-model uplift: who did the marketing actually move?
 
 Criteo: a 2M-row stratified sample (DuckDB, fixed seed) keeps the treatment
 share; features are the 12 anonymized floats. Hillstrom: the full 64k rows
@@ -108,7 +108,7 @@ def load_criteo():
     # Stratified fixed-seed sample per arm, keeping the 85/15 treatment share.
     # The filter sits INSIDE a derived table because a `USING SAMPLE` written
     # after a plain WHERE binds to the base-table scan and samples BEFORE the
-    # filter — which silently shrank the control arm to ~45k rows when tried.
+    # filter, which silently shrank the control arm to ~45k rows when tried.
     df = con.execute(f"""
         SELECT * FROM (
             SELECT f0,f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11, treatment, conversion

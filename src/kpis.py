@@ -2,7 +2,7 @@
 
 Outputs in results/: ad_kpis.csv, campaign_rollup.csv, segment_cuts.csv,
 ad_rank_in_campaign.csv, running_spend.csv, kpi_dictionary.csv,
-kpi_crosscheck.csv (SQL totals vs pandas totals — must match exactly).
+kpi_crosscheck.csv (SQL totals vs pandas totals: must match exactly).
 
 ROAS is reported only under a stated assumption (VALUE_PER_CONVERSION), and
 every table that carries it says so in a column of its own.
@@ -14,7 +14,7 @@ import pandas as pd
 from . import paths
 from .experiments import connect
 
-VALUE_PER_CONVERSION = 50.0  # USD per approved conversion — an assumption, stated everywhere
+VALUE_PER_CONVERSION = 50.0  # USD per approved conversion: an assumption, stated everywhere
 
 KPI_DICTIONARY = [
     ("CTR", "clicks / impressions", "share (0–1)",
@@ -103,7 +103,7 @@ def run() -> None:
     print()
     print(checks_df.to_string(index=False, float_format="%.8g"))
     if not checks_df["match"].all():
-        raise SystemExit("SQL and pandas totals disagree — stop and find out why.")
+        raise SystemExit("SQL and pandas totals disagree: stop and find out why.")
 
 
 if __name__ == "__main__":

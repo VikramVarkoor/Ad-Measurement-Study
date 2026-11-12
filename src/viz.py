@@ -19,7 +19,7 @@ ORANGE = "#eb6834"   # series 2
 AQUA = "#1baf7a"     # series 3
 YELLOW = "#eda100"   # series 4
 GRAY = "#9b9a94"     # de-emphasis, never a series identity
-RED = "#e34948"      # status: serious — reserved for flags
+RED = "#e34948"      # status: serious: reserved for flags
 
 SERIES = [BLUE, ORANGE, AQUA, YELLOW]
 

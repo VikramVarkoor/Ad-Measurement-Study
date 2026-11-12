@@ -1,4 +1,4 @@
-"""Phase 3: incrementality — lift, intervals and MDE for every experiment.
+"""Phase 3: incrementality: lift, intervals and MDE for every experiment.
 
 Everything is computed from DuckDB aggregates (intention to treat, by
 assignment), so the 14M-row Criteo file never enters Python memory. The
