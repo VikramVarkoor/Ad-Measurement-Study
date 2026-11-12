@@ -37,11 +37,12 @@ channel's own experiment; the pooled figure is a summary, not a law.
 Both are built from the committed CSV feeds in `dashboards/`, so they
 show exactly what the pipeline produces.
 
-🤖 **[Live scoring API (try it in the browser)](https://uplift-scoring-api.onrender.com/docs)**:
-the uplift model served on Render's free tier. POST twelve feature
-values to `/score`, get back the predicted uplift, its decile, and
-whether that user is worth targeting. Free-tier hosting sleeps when
-idle, so the first request can take up to a minute.
+🤖 **[Live scoring demo (try the model in the browser)](https://uplift-scoring-api.onrender.com)**:
+the uplift model served on Render's free tier, with a one-click demo
+page. Score a user, get back the predicted uplift, its decile, and
+whether that user is worth targeting; the raw API docs live at
+[`/docs`](https://uplift-scoring-api.onrender.com/docs). Free-tier
+hosting sleeps when idle, so the first request can take up to a minute.
 
 ## The deck
 
