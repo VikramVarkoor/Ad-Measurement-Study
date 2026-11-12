@@ -29,6 +29,14 @@ channel's own experiment; the pooled figure is a summary, not a law.
 
 ![Forest plot](figures/forest_plot.png)
 
+## Live dashboards
+
+📈 **[The experiments: lift by study, with intervals (Tableau Public)](https://public.tableau.com/app/profile/vikram.varkoor/viz/Marketing-Incrementality-Experiments/Dashboard1)** ·
+📉 **[The e-commerce monitor: weekly orders, lateness, reviews (Looker Studio)](https://datastudio.google.com/reporting/91ee4f11-caab-4b8e-8fd7-fdde1dca2961)**
+
+Both are built from the committed CSV feeds in `dashboards/`, so they
+show exactly what the pipeline produces.
+
 ## The deck
 
 14 slides written for a non-technical reader. GitHub cannot render a
