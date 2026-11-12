@@ -55,6 +55,9 @@ def test_scoring_api_health_and_score():
     from api.main import app
     client = TestClient(app)
     assert client.get("/health").json()["status"] == "ok"
+    landing = client.get("/")
+    assert landing.status_code == 200
+    assert "Score a user" in landing.text
     payload = {f"f{i}": 0.0 for i in range(12)}
     out = client.post("/score", json=payload).json()
     assert set(out) >= {"uplift_score", "decile", "in_top_20pct"}

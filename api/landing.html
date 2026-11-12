@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uplift Scoring API</title>
+<style>
+  :root {
+    --bg: #0A0F1E; --panel: #10172B; --edge: #2A3558;
+    --text: #F2F5FC; --subtle: #93A0C4; --faint: #5E6B92;
+    --cobalt: #4D8DFF; --cobalt-soft: #9DB9FF; --orange: #FF6A2B;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background:
+      radial-gradient(900px 600px at -10% -10%, rgba(34,85,220,.28), transparent 60%),
+      radial-gradient(900px 700px at 110% 110%, rgba(22,52,160,.25), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font: 16px/1.55 "Avenir Next", -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh; padding: 48px 20px 64px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  .kicker {
+    color: var(--orange); font-size: 12px; font-weight: 700;
+    letter-spacing: .28em; text-transform: uppercase;
+  }
+  .kicker::before {
+    content: ""; display: inline-block; width: 26px; height: 3px;
+    background: var(--orange); margin-right: 12px; vertical-align: 3px;
+  }
+  h1 { font-size: clamp(34px, 6vw, 56px); font-weight: 700; margin: 10px 0 6px; }
+  h1 .accent { color: var(--cobalt); }
+  .lede { color: var(--subtle); max-width: 640px; margin-bottom: 36px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 36px; }
+  .card {
+    background: color-mix(in srgb, var(--panel) 80%, transparent);
+    border: 1px solid var(--edge); border-radius: 14px; padding: 20px 22px;
+  }
+  .card h3 { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--cobalt); margin-bottom: 8px; }
+  .card p { color: var(--subtle); font-size: 14.5px; }
+  .card p b { color: var(--text); }
+  .demo { background: color-mix(in srgb, var(--panel) 85%, transparent); border: 1px solid var(--edge); border-radius: 16px; padding: 26px; }
+  .demo h2 { font-size: 20px; margin-bottom: 4px; }
+  .demo .sub { color: var(--faint); font-size: 13px; margin-bottom: 18px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .grid label { display: block; font-size: 11px; color: var(--faint); margin-bottom: 3px; }
+  .grid input {
+    width: 100%; background: #0C1322; color: var(--text);
+    border: 1px solid var(--edge); border-radius: 8px; padding: 8px 10px; font-size: 14px;
+  }
+  .grid input:focus { outline: none; border-color: var(--cobalt); }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  button {
+    font: inherit; font-weight: 700; border: 0; border-radius: 10px;
+    padding: 12px 22px; cursor: pointer;
+  }
+  #go { background: var(--cobalt); color: #0A0F1E; }
+  #rand { background: transparent; color: var(--cobalt-soft); border: 1px solid var(--edge); }
+  button:hover { filter: brightness(1.12); }
+  #status { color: var(--faint); font-size: 13px; }
+  .result { display: none; margin-top: 22px; border-top: 1px solid var(--edge); padding-top: 20px; }
+  .result.on { display: flex; gap: 32px; flex-wrap: wrap; align-items: center; }
+  .big { font-size: 56px; font-weight: 700; color: var(--cobalt); line-height: 1; }
+  .big small { display: block; font-size: 13px; color: var(--subtle); font-weight: 400; margin-top: 6px; }
+  .badge { font-weight: 700; padding: 8px 16px; border-radius: 999px; font-size: 14px; }
+  .badge.yes { background: var(--orange); color: #0A0F1E; }
+  .badge.no { background: transparent; color: var(--subtle); border: 1px solid var(--edge); }
+  .note { color: var(--faint); font-size: 12.5px; margin-top: 14px; }
+  .links { margin-top: 34px; color: var(--faint); font-size: 14px; }
+  .links a { color: var(--cobalt-soft); text-decoration: none; }
+  .links a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kicker">Ad Measurement Study · live model</div>
+  <h1>Which users are ads <span class="accent">actually worth showing to?</span></h1>
+  <p class="lede">
+    Most people who buy after seeing an ad would have bought anyway. This
+    service runs the uplift model from the study: it predicts how much an ad
+    changes <i>this specific user's</i> chance of converting, so a campaign
+    can spend only where it causes something.
+  </p>
+
+  <div class="cards">
+    <div class="card"><h3>What it does</h3>
+      <p>Two LightGBM models, trained on the 14M-user Criteo experiment:
+      one learned conversion <b>with ads</b>, one <b>without</b>. The score is
+      the gap: <b>P(convert&nbsp;|&nbsp;ad) − P(convert&nbsp;|&nbsp;no ad)</b>,
+      the predicted lift the ad causes for that user.</p></div>
+    <div class="card"><h3>Why it matters</h3>
+      <p>On held-out data, messaging only the <b>top 20%</b> of users by this
+      score kept <b>68%</b> of all the extra conversions. One fifth of the ad
+      spend, two thirds of the effect.</p></div>
+    <div class="card"><h3>What goes in</h3>
+      <p>Twelve anonymized behavioral features (<b>f0–f11</b>), as published
+      by Criteo. Their real meanings are undisclosed for privacy, which is why
+      the demo lets you randomize them.</p></div>
+  </div>
+
+  <div class="demo">
+    <h2>Score a user</h2>
+    <div class="sub">POSTs your twelve values to <code>/score</code> on this same service</div>
+    <div class="grid" id="feats"></div>
+    <div class="row">
+      <button id="go">Score this user</button>
+      <button id="rand">Randomize</button>
+      <span id="status"></span>
+    </div>
+    <div class="result" id="result">
+      <div class="big" id="score">–<small>predicted uplift score</small></div>
+      <div class="big" id="decile" style="color:var(--text)">–<small>decile (1 = most persuadable)</small></div>
+      <span class="badge no" id="badge">–</span>
+    </div>
+    <div class="note">Free-tier hosting sleeps when idle: the first request
+      after a quiet spell can take up to a minute while the server wakes.
+      Public data, personal project; no claim about any real audience.</div>
+  </div>
+
+  <div class="links">
+    <a href="https://github.com/VikramVarkoor/Ad-Measurement-Study">The full study on GitHub</a> ·
+    <a href="https://github.com/VikramVarkoor/Ad-Measurement-Study/blob/main/deck/ad_measurement_deck.pdf">The 14-slide deck (PDF)</a> ·
+    <a href="/docs">Raw API docs</a>
+  </div>
+</div>
+
+<script>
+  const grid = document.getElementById("feats");
+  for (let i = 0; i < 12; i++) {
+    const d = document.createElement("div");
+    d.innerHTML = `<label for="f${i}">f${i}</label>
+      <input id="f${i}" type="number" step="any" value="0">`;
+    grid.appendChild(d);
+  }
+  const rand = () => {
+    for (let i = 0; i < 12; i++) {
+      document.getElementById("f" + i).value =
+        (Math.random() * 28 - 2).toFixed(2);
+    }
+  };
+  document.getElementById("rand").addEventListener("click", rand);
+  document.getElementById("go").addEventListener("click", async () => {
+    const status = document.getElementById("status");
+    const body = {};
+    for (let i = 0; i < 12; i++) {
+      body["f" + i] = parseFloat(document.getElementById("f" + i).value) || 0;
+    }
+    status.textContent = "scoring… (first call may wake the server)";
+    try {
+      const r = await fetch("/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const out = await r.json();
+      status.textContent = "";
+      document.getElementById("score").firstChild.textContent =
+        out.uplift_score.toFixed(5);
+      document.getElementById("decile").firstChild.textContent = out.decile;
+      const badge = document.getElementById("badge");
+      badge.textContent = out.in_top_20pct
+        ? "TARGET: top 20%" : "skip: below the targeting cut";
+      badge.className = "badge " + (out.in_top_20pct ? "yes" : "no");
+      document.getElementById("result").classList.add("on");
+    } catch (e) {
+      status.textContent = "request failed: " + e.message;
+    }
+  });
+</script>
+</body>
+</html>

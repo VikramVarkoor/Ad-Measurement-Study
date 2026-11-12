@@ -22,7 +22,7 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -65,10 +65,14 @@ class Score(BaseModel):
     note: str
 
 
+_LANDING = (Path(__file__).resolve().parent / "landing.html").read_text()
+
+
 @app.get("/", include_in_schema=False)
-def root() -> RedirectResponse:
-    """The bare URL lands on the interactive docs."""
-    return RedirectResponse(url="/docs")
+def root() -> HTMLResponse:
+    """A designed landing page with a plain-English explanation and a
+    live scoring demo; the raw interactive docs stay at /docs."""
+    return HTMLResponse(_LANDING)
 
 
 @app.get("/health")
