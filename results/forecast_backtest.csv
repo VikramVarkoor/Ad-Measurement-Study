@@ -1,0 +1,4 @@
+model,mae,mape_pct,interval_coverage_pct
+naive,228.0625,17.214829,
+mean4,297.89062,22.347847,
+lightgbm,273.41771,20.385233,56.25

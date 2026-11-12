@@ -22,7 +22,7 @@ SEED = 42
 SAMPLE_PER_ARM = {"treated": 1_700_000, "control": 300_000}  # ~2M, keeps the 85/15 share
 
 
-def two_model_fit_score(X_tr, t_tr, y_tr, X_te) -> np.ndarray:
+def two_model_fit_score(X_tr, t_tr, y_tr, X_te, return_models: bool = False):
     """Fit conversion models on treated and control separately; the uplift
     score is the gap between the two predicted conversion probabilities."""
     params = dict(
@@ -32,7 +32,10 @@ def two_model_fit_score(X_tr, t_tr, y_tr, X_te) -> np.ndarray:
     )
     m1 = LGBMClassifier(**params).fit(X_tr[t_tr == 1], y_tr[t_tr == 1])
     m0 = LGBMClassifier(**params).fit(X_tr[t_tr == 0], y_tr[t_tr == 0])
-    return m1.predict_proba(X_te)[:, 1] - m0.predict_proba(X_te)[:, 1]
+    score = m1.predict_proba(X_te)[:, 1] - m0.predict_proba(X_te)[:, 1]
+    if return_models:
+        return score, m1, m0
+    return score
 
 
 def qini_curve(score, t, y, n_points: int = 101):
@@ -157,10 +160,24 @@ def run_study(key: str, label: str, loader) -> dict:
     X_tr, X_te, t_tr, t_te, y_tr, y_te = train_test_split(
         X, t, y, test_size=0.3, random_state=SEED, stratify=t
     )
-    score = two_model_fit_score(X_tr, t_tr, y_tr, X_te)
+    score, m1, m0 = two_model_fit_score(X_tr, t_tr, y_tr, X_te,
+                                        return_models=True)
 
     phi, qini, random_line, auqc = qini_curve(score, t_te, y_te)
     qini_plot(label, phi, qini, random_line, auqc, paths.FIGURES / f"qini_{key}.png")
+    pd.DataFrame({"phi": phi, "qini": qini, "random_line": random_line}).to_csv(
+        paths.RESULTS / f"qini_points_{key}.csv", index=False, float_format="%.8g")
+
+    if key == "criteo":
+        # persist the two boosters + score cutpoints so the scoring API
+        # (stretch goal) serves from a fresh clone with no 300MB download
+        m1.booster_.save_model(str(paths.MODELS / "criteo_treated.txt"))
+        m0.booster_.save_model(str(paths.MODELS / "criteo_control.txt"))
+        qs = np.arange(0.1, 1.0, 0.1)
+        pd.DataFrame({"quantile": qs,
+                      "score_cutpoint": np.quantile(score, qs)}).to_csv(
+            paths.MODELS / "criteo_score_cutpoints.csv", index=False,
+            float_format="%.8g")
 
     decile_table(score, t_te, y_te).to_csv(
         paths.RESULTS / f"uplift_deciles_{key}.csv", index=False, float_format="%.8g")

@@ -10,6 +10,8 @@ SQL = ROOT / "sql"
 EXCEL = ROOT / "excel"
 DECK = ROOT / "deck"
 DASHBOARDS = ROOT / "dashboards"
+MODELS = ROOT / "models"
+REPORTS = ROOT / "reports"
 
 KAGGLEHUB = RAW / "kagglehub" / "datasets"
 
@@ -22,5 +24,6 @@ MARKETING_AB = KAGGLEHUB / "faviovaz" / "marketing-ab-testing" / "versions" / "1
 FACEBOOK_ADS = KAGGLEHUB / "loveall" / "clicks-conversion-tracking" / "versions" / "1" / "KAG_conversion_data.csv"
 OLIST_DIR = KAGGLEHUB / "olistbr" / "brazilian-ecommerce" / "versions" / "2"
 
-for p in (PROCESSED, RESULTS, FIGURES, EXCEL, DECK, DASHBOARDS):
+for p in (PROCESSED, RESULTS, FIGURES, EXCEL, DECK, DASHBOARDS, MODELS,
+          REPORTS):
     p.mkdir(parents=True, exist_ok=True)

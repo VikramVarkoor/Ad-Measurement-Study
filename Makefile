@@ -7,7 +7,7 @@
 
 PY := .venv/bin/python
 
-.PHONY: all data report test audit kpis lift uplift meta ecommerce excel deck dashboards venv
+.PHONY: all data report test audit kpis lift uplift meta ecommerce excel deck dashboards venv forecast summary api
 
 all: data report test
 
@@ -44,7 +44,16 @@ deck:
 dashboards:
 	$(PY) -m src.export_dashboards
 
-report: audit kpis lift uplift meta ecommerce excel deck dashboards
+forecast:
+	$(PY) -m src.forecast
+
+summary:
+	$(PY) -m src.summary
+
+api:
+	.venv/bin/uvicorn api.main:app --reload
+
+report: audit kpis lift uplift meta ecommerce forecast summary excel deck dashboards
 
 test:
 	$(PY) -m pytest tests/ -q

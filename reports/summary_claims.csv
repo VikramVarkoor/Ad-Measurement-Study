@@ -1,0 +1,13 @@
+text,value,source,column
+16.1,16.1,lift_results.csv,n_treated+n_control
+1.32,1.32,meta_results.csv,rr
+1.18,1.18,meta_results.csv,ci_low
+1.48,1.48,meta_results.csv,ci_high
+99.7,99.7,meta_results.csv,I2
+0.194,0.194,lift_results.csv,rate_control
+0.309,0.309,lift_results.csv,rate_treated
+0.12,0.12,lift_results.csv,abs_lift_pp
+68,68,uplift_summary.csv,share_kept_top20
+25,25,uplift_summary.csv,share_kept_top20
+1.86,1.86,delay_vs_review.csv,avg_review_score
+4.29,4.29,delay_vs_review.csv,avg_review_score

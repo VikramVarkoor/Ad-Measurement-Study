@@ -1,0 +1,10 @@
+# One-click deploy of the uplift scoring API on Render's free tier.
+# Connect this repository in the Render dashboard and it picks this up.
+services:
+  - type: web
+    name: uplift-scoring-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-api.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
